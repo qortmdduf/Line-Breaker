@@ -1,0 +1,60 @@
+// SaveSystem.js — localStorage 기반 세이브/로드
+// window.SaveSystem 으로 전역 접근
+
+window.SaveSystem = (function() {
+  const SAVE_KEY = 'defense_save';
+
+  const DEFAULT_SAVE = {
+    gold: 0,
+    clearedStages: [],
+    unlockedUnits: ['warrior', 'archer'],
+    upgrades: {},
+    heroUsed: false,
+  };
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return Object.assign({}, DEFAULT_SAVE);
+      const parsed = JSON.parse(raw);
+      // 누락된 키는 기본값으로 보완 (신규 필드 추가 대비)
+      return Object.assign({}, DEFAULT_SAVE, parsed);
+    } catch (e) {
+      console.warn('[SaveSystem] 세이브 로드 실패, 기본값 사용:', e);
+      return Object.assign({}, DEFAULT_SAVE);
+    }
+  }
+
+  function save(data) {
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    } catch (e) {
+      console.error('[SaveSystem] 세이브 저장 실패:', e);
+    }
+  }
+
+  function reset() {
+    localStorage.removeItem(SAVE_KEY);
+    return Object.assign({}, DEFAULT_SAVE);
+  }
+
+  // 현재 세이브 데이터 (싱글턴, 메모리 캐시)
+  let _cache = null;
+
+  function get() {
+    if (!_cache) _cache = load();
+    return _cache;
+  }
+
+  function persist() {
+    if (_cache) save(_cache);
+  }
+
+  // 전투 시작 시 영웅 사용 여부 초기화
+  function resetHeroUsed() {
+    get().heroUsed = false;
+    persist();
+  }
+
+  return { get, persist, reset, resetHeroUsed };
+})();

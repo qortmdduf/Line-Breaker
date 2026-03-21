@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>LineBreaker</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      touch-action: none; /* 모바일 터치 스크롤 방지 */
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Phaser 3 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
+
+  <!--
+    로드 순서 규칙:
+    1. config (전역 상수)
+    2. data (스탯, 스테이지, 업그레이드 데이터)
+    3. systems (저장, 화폐, 코스트, 웨이브)
+    4. entities (유닛, 성, 투사체) — Unit이 AllyUnit/EnemyUnit보다 먼저
+    5. ui (HUD, 로비UI, 업그레이드UI)
+    6. scenes (Boot → MainMenu → Lobby → Battle → Upgrade → Result)
+    7. main (Phaser.Game 인스턴스 생성 — 반드시 마지막)
+  -->
+
+  <!-- 1. 설정 -->
+  <script src="src/config.js"></script>
+
+  <!-- 2. 데이터 -->
+  <script src="src/data/units.js"></script>
+  <script src="src/data/stages.js"></script>
+  <script src="src/data/upgrades.js"></script>
+
+  <!-- 3. 시스템 -->
+  <script src="src/systems/SaveSystem.js"></script>
+  <script src="src/systems/CurrencySystem.js"></script>
+  <script src="src/systems/CostSystem.js"></script>
+  <script src="src/systems/WaveSystem.js"></script>
+
+  <!-- 4. 엔티티 (기반 클래스 먼저) -->
+  <script src="src/entities/Unit.js"></script>
+  <script src="src/entities/AllyUnit.js"></script>
+  <script src="src/entities/EnemyUnit.js"></script>
+  <script src="src/entities/Hero.js"></script>
+  <script src="src/entities/Castle.js"></script>
+  <script src="src/entities/Projectile.js"></script>
+
+  <!-- 5. UI -->
+  <script src="src/ui/BattleHUD.js"></script>
+  <script src="src/ui/LobbyUI.js"></script>
+  <script src="src/ui/UpgradeUI.js"></script>
+
+  <!-- 6. 씬 -->
+  <script src="src/scenes/BootScene.js"></script>
+  <script src="src/scenes/MainMenuScene.js"></script>
+  <script src="src/scenes/LobbyScene.js"></script>
+  <script src="src/scenes/BattleScene.js"></script>
+  <script src="src/scenes/UpgradeScene.js"></script>
+  <script src="src/scenes/ResultScene.js"></script>
+
+  <!-- 7. 진입점 (반드시 마지막) -->
+  <script src="src/main.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,152 @@
+// Unit.js — 유닛 기본 클래스
+// Phaser.GameObjects.Container 기반
+// AllyUnit, EnemyUnit, Hero가 이 클래스를 상속한다
+
+class Unit extends Phaser.GameObjects.Container {
+  /**
+   * @param {Phaser.Scene} scene
+   * @param {number} x
+   * @param {number} y
+   * @param {object} stats  - units.js의 스탯 (업그레이드 적용 후)
+   * @param {boolean} isAlly
+   */
+  constructor(scene, x, y, stats, isAlly) {
+    super(scene, x, y);
+
+    this.stats = stats;
+    this.isAlly = isAlly;
+    this.hp = stats.hp;
+    this.maxHp = stats.hp;
+    this.attackCooldown = 0;  // 남은 쿨다운 ms
+    this.target = null;       // 현재 공격 대상
+    this.alive = true;
+
+    // 이동 방향: 아군은 오른쪽(+1), 적군은 왼쪽(-1)
+    this.direction = isAlly ? 1 : -1;
+
+    this._buildGraphics();
+
+    scene.add.existing(this);
+  }
+
+  _buildGraphics() {
+    const cfg = window.GameConfig;
+    const r = this.stats.radius;
+
+    // 몸체 원
+    this._body = this.scene.add.graphics();
+    this._drawBody();
+    this.add(this._body);
+
+    // HP 바 배경
+    this._hpBg = this.scene.add.graphics();
+    this._hpBg.fillStyle(cfg.COLOR.HP_BG);
+    this._hpBg.fillRect(-r, -(r + 8), r * 2, 4);
+    this.add(this._hpBg);
+
+    // HP 바 전경
+    this._hpBar = this.scene.add.graphics();
+    this.add(this._hpBar);
+
+    this._updateHpBar();
+  }
+
+  _drawBody() {
+    const color = this._getColor();
+    const r = this.stats.radius;
+    this._body.clear();
+    this._body.fillStyle(color);
+    this._body.fillCircle(0, 0, r);
+  }
+
+  // 서브클래스에서 오버라이드
+  _getColor() {
+    return window.GameConfig.COLOR.WHITE;
+  }
+
+  _updateHpBar() {
+    const cfg = window.GameConfig;
+    const r = this.stats.radius;
+    const ratio = Math.max(0, this.hp / this.maxHp);
+    const color = this.isAlly ? cfg.COLOR.HP_GREEN : cfg.COLOR.HP_RED;
+
+    this._hpBar.clear();
+    if (ratio > 0) {
+      this._hpBar.fillStyle(color);
+      this._hpBar.fillRect(-r, -(r + 8), Math.floor(r * 2 * ratio), 4);
+    }
+  }
+
+  /**
+   * @param {number} delta ms
+   * @param {Unit[]} enemies  - 공격 대상이 될 수 있는 유닛 배열
+   * @param {object} enemyCastle  - { x, hp, takeDamage }
+   */
+  update(delta, enemies, enemyCastle) {
+    if (!this.alive) return;
+
+    this.attackCooldown -= delta;
+
+    // 1. 살아있는 적 중 사거리 안에 있는 가장 가까운 것 탐색
+    this.target = this._findTarget(enemies);
+
+    if (this.target) {
+      // 사거리 안: 공격
+      if (this.attackCooldown <= 0) {
+        this._doAttack(this.target);
+      }
+    } else {
+      // 사거리 밖: 적 성 방향으로 이동
+      const spd = this.stats.spd * (delta / 1000);
+
+      // 적 성에 닿으면 공격
+      const distToCastle = Math.abs(this.x - enemyCastle.x);
+      if (distToCastle <= this.stats.range) {
+        if (this.attackCooldown <= 0) {
+          this.attackCooldown = this.stats.atkSpd;
+          enemyCastle.takeDamage(this.stats.atk);
+        }
+      } else {
+        this.x += this.direction * spd;
+      }
+    }
+  }
+
+  _findTarget(enemies) {
+    if (!enemies || enemies.length === 0) return null;
+
+    let closest = null;
+    let closestDist = Infinity;
+
+    for (const e of enemies) {
+      if (!e.alive) continue;
+      const dist = Math.abs(this.x - e.x);
+      if (dist <= this.stats.range && dist < closestDist) {
+        closest = e;
+        closestDist = dist;
+      }
+    }
+    return closest;
+  }
+
+  _doAttack(target) {
+    this.attackCooldown = this.stats.atkSpd;
+    target.takeDamage(this.stats.atk);
+  }
+
+  takeDamage(amount) {
+    if (!this.alive) return;
+    this.hp -= amount;
+    this._updateHpBar();
+    if (this.hp <= 0) {
+      this.die();
+    }
+  }
+
+  die() {
+    this.alive = false;
+    this.destroy();
+  }
+}
+
+window.Unit = Unit;

@@ -1,0 +1,37 @@
+// CostSystem.js — 전투 코스트 자동 재생 시스템
+// 전투 중에만 사용되는 인스턴스 기반 클래스
+// BattleScene에서 new CostSystem()으로 생성
+
+class CostSystem {
+  constructor() {
+    const cfg = window.GameConfig;
+    this.current = cfg.COST_MAX;   // 전투 시작 시 풀로 시작
+    this.max = cfg.COST_MAX;
+    this.regenRate = cfg.COST_REGEN_RATE; // 초당
+    this._accumulator = 0;
+  }
+
+  // delta: ms 단위
+  update(delta) {
+    this._accumulator += delta / 1000; // 초 단위로 변환
+    if (this._accumulator >= 1) {
+      const ticks = Math.floor(this._accumulator);
+      this._accumulator -= ticks;
+      this.current = Math.min(this.max, this.current + ticks * this.regenRate);
+    }
+  }
+
+  // 코스트 차감 시도. 성공 true, 부족 false
+  spend(amount) {
+    if (this.current < amount) return false;
+    this.current -= amount;
+    return true;
+  }
+
+  // 0~1 비율 반환 (HUD 바 렌더링용)
+  getRatio() {
+    return this.current / this.max;
+  }
+}
+
+window.CostSystem = CostSystem;

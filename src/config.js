@@ -8,14 +8,14 @@ window.GameConfig = {
 
   // 코스트 시스템
   COST_MAX: 150,
-  COST_REGEN_RATE: 10,      // 초당 10 코스트 (약 15초에 가득 참)
+  COST_REGEN_RATE: 3,       // 초당 3 코스트 (약 50초에 가득 참)
 
   // 성 HP
   CASTLE_HP_ALLY: 1000,
 
   // 성 화살 기본값
-  ARROW_BASE_DAMAGE: 20,
-  ARROW_INTERVAL: 3000,     // ms
+  ARROW_BASE_DAMAGE: 5,
+  ARROW_INTERVAL: 600,      // ms (초당 약 1.7발)
   ARROW_PROJ_SPEED: 600,    // px/s (포물선 발사 초속)
   ARROW_GRAVITY: 600,       // px/s² (중력 가속도)
   ARROW_ANGLE: 30,          // 기본 발사 각도 (도)
@@ -31,7 +31,7 @@ window.GameConfig = {
   AUTO_SPAWN_INTERVAL: 6000, // ms (적 웨이브보다 느림 → 기본적으로 밀림)
 
   // UI
-  HUD_HEIGHT: 170,          // 화살표 버튼 행 추가로 증가
+  HUD_HEIGHT: 140,
 
   // 색상 팔레트
   COLOR: {

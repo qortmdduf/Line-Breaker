@@ -104,9 +104,10 @@ class ArcProjectile {
 
   /**
    * @param {number} delta ms
-   * @param {Unit[]} enemyUnits 충돌 체크 대상
+   * @param {Unit[]} enemyUnits 적 유닛 (충돌 체크)
+   * @param {Unit[]} allyUnits  아군 유닛 (아군 피해 포함)
    */
-  update(delta, enemyUnits) {
+  update(delta, enemyUnits, allyUnits) {
     if (!this.alive) return;
 
     const dt = delta / 1000;
@@ -134,18 +135,17 @@ class ArcProjectile {
       return;
     }
 
-    // 적 유닛 충돌 체크
-    if (enemyUnits) {
-      for (const e of enemyUnits) {
-        if (!e.alive) continue;
-        const dx = this._x - e.x;
-        const dy = this._y - e.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist <= e.stats.radius + 6) {
-          e.takeDamage(this.damage);
-          this._destroy();
-          return;
-        }
+    // 충돌 체크 — 적군 + 아군 모두 (아군 오사 포함)
+    const targets = [...(enemyUnits || []), ...(allyUnits || [])];
+    for (const e of targets) {
+      if (!e.alive) continue;
+      const dx = this._x - e.x;
+      const dy = this._y - e.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= e.stats.radius + 6) {
+        e.takeDamage(this.damage);
+        this._destroy();
+        return;
       }
     }
   }

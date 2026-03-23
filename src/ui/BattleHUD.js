@@ -1,23 +1,11 @@
 // BattleHUD.js — 전투 하단 고정 패널
-// BattleScene이 생성하고 update()를 호출한다
 
 class BattleHUD {
-  /**
-   * @param {Phaser.Scene} scene
-   * @param {CostSystem} costSystem
-   * @param {function} onSummon  - callback(unitId)
-   * @param {function} onSkill   - callback()
-   */
   constructor(scene, costSystem, onSummon, onSkill) {
     this.scene = scene;
     this.costSystem = costSystem;
     this.onSummon = onSummon;
     this.onSkill = onSkill;
-    this.hero = null;
-
-    // 카메라 스크롤 플래그 (BattleScene.update에서 참조)
-    this.isScrollingLeft = false;
-    this.isScrollingRight = false;
 
     const cfg = window.GameConfig;
     const W = cfg.GAME_WIDTH;
@@ -31,67 +19,30 @@ class BattleHUD {
     this._bg.fillRect(0, hudY, W, hudH);
     this._bg.setDepth(10);
 
-    // ── 화살표 버튼 행 (HUD 최상단) ──────────────────────────
-    this._buildScrollButtons(W, hudY);
-
-    // ── 코스트 바 (화살표 행 아래) ───────────────────────────
-    this._costLabel = scene.add.text(10, hudY + 32, 'COST', {
+    // 코스트 라벨
+    this._costLabel = scene.add.text(10, hudY + 6, 'COST', {
       fontSize: '12px', color: '#aaaaaa'
     }).setDepth(11).setScrollFactor(0);
 
+    // 코스트 바 배경
     this._costBarBg = scene.add.graphics().setDepth(11).setScrollFactor(0);
     this._costBarBg.fillStyle(cfg.COLOR.HP_BG);
-    this._costBarBg.fillRect(50, hudY + 32, 200, 12);
+    this._costBarBg.fillRect(50, hudY + 6, 200, 12);
 
+    // 코스트 바
     this._costBar = scene.add.graphics().setDepth(11).setScrollFactor(0);
 
-    this._costText = scene.add.text(258, hudY + 32, '150/150', {
+    // 코스트 수치 텍스트
+    this._costText = scene.add.text(258, hudY + 6, '0/150', {
       fontSize: '12px', color: '#ffffff'
     }).setDepth(11).setScrollFactor(0);
 
-    // ── 유닛 버튼 ────────────────────────────────────────────
+    // 유닛 버튼
     this._buttons = [];
     this._heroButton = null;
     this._heroUsed = false;
 
     this._buildButtons();
-  }
-
-  _buildScrollButtons(W, hudY) {
-    const scene = this.scene;
-    const btnY = hudY + 13;
-
-    // 구분선
-    const line = scene.add.graphics().setScrollFactor(0).setDepth(11);
-    line.lineStyle(1, 0x444466);
-    line.lineBetween(0, hudY + 26, W, hudY + 26);
-
-    // ◀ 버튼
-    const btnLeft = scene.add.text(W / 2 - 90, btnY, '◀◀', {
-      fontSize: '18px', color: '#88aaff', backgroundColor: '#223366',
-      padding: { x: 8, y: 2 }
-    }).setOrigin(0.5).setDepth(12).setScrollFactor(0)
-      .setInteractive({ useHandCursor: true });
-
-    btnLeft.on('pointerdown', () => { this.isScrollingLeft = true; });
-    btnLeft.on('pointerup', () => { this.isScrollingLeft = false; });
-    btnLeft.on('pointerout', () => { this.isScrollingLeft = false; });
-
-    // 라벨
-    scene.add.text(W / 2, btnY, '화면 이동', {
-      fontSize: '11px', color: '#888888'
-    }).setOrigin(0.5).setDepth(12).setScrollFactor(0);
-
-    // ▶ 버튼
-    const btnRight = scene.add.text(W / 2 + 90, btnY, '▶▶', {
-      fontSize: '18px', color: '#88aaff', backgroundColor: '#223366',
-      padding: { x: 8, y: 2 }
-    }).setOrigin(0.5).setDepth(12).setScrollFactor(0)
-      .setInteractive({ useHandCursor: true });
-
-    btnRight.on('pointerdown', () => { this.isScrollingRight = true; });
-    btnRight.on('pointerup', () => { this.isScrollingRight = false; });
-    btnRight.on('pointerout', () => { this.isScrollingRight = false; });
   }
 
   _buildButtons() {
@@ -100,14 +51,13 @@ class BattleHUD {
     const W = cfg.GAME_WIDTH;
     const H = cfg.GAME_HEIGHT;
     const hudY = H - cfg.HUD_HEIGHT;
-    const btnY = hudY + 54;  // 화살표 행(26) + 코스트 바(28)
+    const btnY = hudY + 28;
 
     const unitIds = ['warrior', 'archer', 'knight', 'mage'].filter(id =>
       save.unlockedUnits.includes(id)
     );
 
     const hasHero = save.unlockedUnits.includes('hero') && !save.heroUsed;
-
     const availW = hasHero ? W - 88 : W;
     const btnW = 68;
     const gap = 4;
@@ -150,8 +100,7 @@ class BattleHUD {
       if (this.onSummon) this.onSummon(unitId);
     });
 
-    const btn = { bg, nameText, costText, hitZone };
-    return btn;
+    return { bg, nameText, costText, hitZone };
   }
 
   _buildHeroButton() {
@@ -160,7 +109,7 @@ class BattleHUD {
     const H = cfg.GAME_HEIGHT;
     const hudY = H - cfg.HUD_HEIGHT;
     const bx = W - 82;
-    const by = hudY + 54;
+    const by = hudY + 28;
     const bw = 76;
     const bh = 50;
     const scene = this.scene;
@@ -170,11 +119,11 @@ class BattleHUD {
     bg.fillRoundedRect(bx, by, bw, bh, 6);
 
     const nameText = scene.add.text(bx + bw / 2, by + 10, '★ 영웅', {
-      fontSize: '13px', color: '#ffd700', align: 'center'
+      fontSize: '13px', color: '#ffd700'
     }).setOrigin(0.5, 0).setDepth(12).setScrollFactor(0);
 
     const costText = scene.add.text(bx + bw / 2, by + 30, 'Cost:' + window.UNITS.hero.cost, {
-      fontSize: '11px', color: '#ffdd88', align: 'center'
+      fontSize: '11px', color: '#ffdd88'
     }).setOrigin(0.5, 0).setDepth(12).setScrollFactor(0);
 
     const hitZone = scene.add.zone(bx + bw / 2, by + bh / 2, bw, bh)
@@ -182,15 +131,12 @@ class BattleHUD {
       .setDepth(13).setScrollFactor(0);
 
     hitZone.on('pointerdown', () => {
-      if (!this._heroUsed && this.onSummon) {
-        this.onSummon('hero');
-      }
+      if (!this._heroUsed && this.onSummon) this.onSummon('hero');
     });
 
     this._heroButton = { bg, nameText, costText, hitZone };
   }
 
-  // 영웅 소환 완료 시 BattleScene이 호출 — 영웅 버튼을 스킬 버튼으로 전환
   markHeroUsed() {
     this._heroUsed = true;
     if (this._heroButton) {
@@ -199,7 +145,7 @@ class BattleHUD {
       const H = cfg.GAME_HEIGHT;
       const hudY = H - cfg.HUD_HEIGHT;
       const bx = W - 82;
-      const by = hudY + 54;
+      const by = hudY + 28;
       const bw = 76;
       const bh = 50;
 
@@ -241,9 +187,8 @@ class BattleHUD {
     if (!this._skillBg || !hero || !hero.alive) return;
 
     const isReady = hero.isSkillReady();
-    const color = isReady ? 0xcc8800 : 0x554400;
     this._skillBg.clear();
-    this._skillBg.fillStyle(color);
+    this._skillBg.fillStyle(isReady ? 0xcc8800 : 0x554400);
     this._skillBg.fillRoundedRect(
       this._skillBtnX, this._skillBtnY,
       this._skillBtnW, this._skillBtnH, 6
@@ -252,21 +197,14 @@ class BattleHUD {
     if (isReady) {
       this._skillStatus.setText('준비!').setColor('#aaffaa');
     } else {
-      const sec = Math.ceil(hero.skillCooldown / 1000);
-      this._skillStatus.setText(sec + 's').setColor('#ff9944');
+      this._skillStatus.setText(Math.ceil(hero.skillCooldown / 1000) + 's').setColor('#ff9944');
     }
   }
 
-  /**
-   * 매 프레임 호출 — 코스트 바 + 버튼 상태 갱신
-   * @param {Hero|null} hero
-   */
   update(hero) {
     this._updateCostBar();
     this._updateButtonStates();
-    if (hero) {
-      this._updateSkillButton(hero);
-    }
+    if (hero) this._updateSkillButton(hero);
   }
 
   _updateCostBar() {
@@ -279,16 +217,14 @@ class BattleHUD {
 
     this._costBar.clear();
     this._costBar.fillStyle(0x44aaff);
-    this._costBar.fillRect(50, hudY + 32, Math.floor(200 * ratio), 12);
+    this._costBar.fillRect(50, hudY + 6, Math.floor(200 * ratio), 12);
     this._costText.setText(current + '/' + max);
   }
 
   _updateButtonStates() {
     const currentCost = this.costSystem.current;
-
     for (const { id, btn } of this._buttons) {
-      const unit = window.UNITS[id];
-      const canAfford = currentCost >= unit.cost;
+      const canAfford = currentCost >= window.UNITS[id].cost;
       const alpha = canAfford ? 1 : 0.4;
       btn.bg.setAlpha(alpha);
       btn.nameText.setAlpha(alpha);
@@ -297,18 +233,16 @@ class BattleHUD {
   }
 
   destroy() {
-    const items = [
-      this._bg, this._costLabel, this._costBarBg, this._costBar, this._costText
-    ];
-    items.forEach(o => { if (o) o.destroy(); });
+    [this._bg, this._costLabel, this._costBarBg, this._costBar, this._costText]
+      .forEach(o => { if (o) o.destroy(); });
 
     for (const { btn } of this._buttons) {
       [btn.bg, btn.nameText, btn.costText, btn.hitZone].forEach(o => { if (o) o.destroy(); });
     }
 
     if (this._heroButton) {
-      const hb = this._heroButton;
-      [hb.bg, hb.nameText, hb.costText, hb.hitZone].forEach(o => { if (o && o.destroy) o.destroy(); });
+      [this._heroButton.bg, this._heroButton.nameText,
+       this._heroButton.costText, this._heroButton.hitZone].forEach(o => { if (o) o.destroy(); });
     }
 
     [this._skillBg, this._skillLabel, this._skillStatus, this._skillHitZone]

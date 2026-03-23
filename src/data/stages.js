@@ -6,7 +6,7 @@ window.STAGES = [
     id: 1,
     enemyCastleHp: 500,
     enemyUnits: ['warrior'],
-    spawnInterval: 4000,   // ms
+    spawnInterval: 2000,   // ms
     reward: 50,
     label: 'Stage 1',
   },

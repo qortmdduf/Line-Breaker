@@ -15,8 +15,6 @@ class BattleScene extends Phaser.Scene {
     const save = window.SaveSystem.get();
 
     window.SaveSystem.resetHeroUsed();
-
-    // 카메라 스크롤 범위
     this.cameras.main.setBounds(0, 0, cfg.WORLD_WIDTH, cfg.GAME_HEIGHT);
 
     this._buildBackground();
@@ -24,27 +22,33 @@ class BattleScene extends Phaser.Scene {
     this.costSystem = new window.CostSystem();
     this._arrowAngle = cfg.ARROW_ANGLE;
 
+    // 불화살 상태
+    this._fireArrowCooldown = 0;   // 남은 쿨타임 ms
+    this._fireArrowDuration = 0;   // 남은 활성 시간 ms
+    this._FIRE_CD   = 10000;       // 쿨타임 10초
+    this._FIRE_DUR  = 5000;        // 지속 5초
+
     const arrowDmgLevel = (save.upgrades['arrow_dmg']) || 0;
     const arrowDmg = cfg.ARROW_BASE_DAMAGE + arrowDmgLevel * 10;
-    const arrowInterval = cfg.ARROW_INTERVAL;
 
-    // 아군 성: 각도 기반 포물선 화살
     this.allyCastle = new window.Castle(
       this, cfg.ALLY_CASTLE_X, true, cfg.CASTLE_HP_ALLY,
-      arrowDmg, arrowInterval,
+      arrowDmg, cfg.ARROW_INTERVAL,
       (castle) => this._spawnArrow(castle.x, cfg.BATTLE_Y - 100, castle.arrowAngle, arrowDmg)
     );
 
-    // 적군 성: 타겟 추적 화살
     this.enemyCastle = new window.Castle(
       this, cfg.ENEMY_CASTLE_X, false, this.stageData.enemyCastleHp,
-      cfg.ARROW_BASE_DAMAGE, arrowInterval,
+      cfg.ARROW_BASE_DAMAGE, cfg.ARROW_INTERVAL,
       (castle, target) => this._spawnProjectile(castle.x, cfg.BATTLE_Y - 80, target, castle.arrowDamage, 300)
     );
 
-    this.allyUnits = [];
-    this.enemyUnits = [];
-    this.projectiles = [];
+    // 아군 성 HP 감소 시 긴장감 효과
+    this.allyCastle.onDamageThreshold = () => this._triggerDamageEffect();
+
+    this.allyUnits    = [];
+    this.enemyUnits   = [];
+    this.projectiles  = [];
     this.arcProjectiles = [];
 
     this.allyCastle.setTargets(this.enemyUnits);
@@ -54,16 +58,18 @@ class BattleScene extends Phaser.Scene {
       this._spawnEnemy(unitId);
     });
     this.waveSystem.start();
-
     this._startAutoSpawn();
 
     this.hud = new window.BattleHUD(
       this, this.costSystem,
-      (unitId) => this._onSummonRequest(unitId),
-      () => this._onSkillRequest()
+      (unitId)    => this._onSummonRequest(unitId),
+      ()          => this._onSkillRequest(),
+      (slotIndex) => this._onSkillSlotPressed(slotIndex)
     );
 
-    // 각도 표시기 + 드래그 컨트롤 (화살표 버튼 대신)
+    // 빨간 테두리 그래픽 (HP 감소 시 펄스)
+    this._buildRedBorder();
+
     this._buildAngleIndicator();
     this._startDragControls();
 
@@ -81,14 +87,8 @@ class BattleScene extends Phaser.Scene {
     const H = cfg.GAME_HEIGHT;
     const groundY = cfg.BATTLE_Y;
 
-    const sky = this.add.graphics();
-    sky.fillStyle(cfg.COLOR.SKY);
-    sky.fillRect(0, 0, W, groundY);
-
-    const ground = this.add.graphics();
-    ground.fillStyle(cfg.COLOR.GROUND);
-    ground.fillRect(0, groundY, W, H - groundY);
-
+    this.add.graphics().fillStyle(cfg.COLOR.SKY).fillRect(0, 0, W, groundY);
+    this.add.graphics().fillStyle(cfg.COLOR.GROUND).fillRect(0, groundY, W, H - groundY);
     const horizon = this.add.graphics();
     horizon.lineStyle(2, 0x2d5a27);
     horizon.lineBetween(0, groundY, W, groundY);
@@ -107,35 +107,58 @@ class BattleScene extends Phaser.Scene {
     });
   }
 
-  // ── 각도 표시기 (화면 좌상단 고정) ────────────────────────
-  _buildAngleIndicator() {
+  // ── 빨간 테두리 (긴장감 효과) ─────────────────────────────
+  _buildRedBorder() {
     const cfg = window.GameConfig;
+    const W = cfg.GAME_WIDTH;
+    const H = cfg.GAME_HEIGHT;
 
+    this._redBorder = this.add.graphics().setScrollFactor(0).setDepth(50);
+    this._redBorder.lineStyle(12, 0xff0000, 1);
+    this._redBorder.strokeRect(2, 2, W - 4, H - 4);
+    this._redBorder.setAlpha(0);
+  }
+
+  _triggerDamageEffect() {
+    // 진동
+    this.cameras.main.shake(350, 0.014);
+
+    // 빨간 테두리 펄스 (두 번 깜빡임)
+    this.tweens.add({
+      targets: this._redBorder,
+      alpha: { from: 0.9, to: 0 },
+      duration: 250,
+      yoyo: true,
+      repeat: 1,
+      ease: 'Sine.easeInOut',
+    });
+  }
+
+  // ── 각도 표시기 (좌상단 고정) ──────────────────────────────
+  _buildAngleIndicator() {
     const bg = this.add.graphics().setScrollFactor(0).setDepth(20);
     bg.fillStyle(0x112244, 0.80);
     bg.fillRoundedRect(6, 34, 72, 22, 5);
 
-    this._angleText = this.add.text(42, 45, '조준 ' + Math.round(this._arrowAngle) + '\u00b0', {
-      fontSize: '12px', color: '#ffdd88'
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(21);
+    this._angleText = this.add.text(42, 45,
+      '조준 ' + Math.round(this._arrowAngle) + '\u00b0', {
+        fontSize: '12px', color: '#ffdd88'
+      }).setOrigin(0.5).setScrollFactor(0).setDepth(21);
 
-    // 안내 텍스트 (3초 후 페이드아웃)
-    const hint = this.add.text(cfg.GAME_WIDTH / 2, cfg.BATTLE_Y - 60,
+    const hint = this.add.text(
+      window.GameConfig.GAME_WIDTH / 2, window.GameConfig.BATTLE_Y - 60,
       '위아래 드래그: 조준  /  좌우 드래그: 화면 이동', {
-        fontSize: '11px', color: '#ffffff', backgroundColor: '#00000088',
-        padding: { x: 6, y: 3 }
+        fontSize: '11px', color: '#ffffff',
+        backgroundColor: '#00000088', padding: { x: 6, y: 3 }
       }).setOrigin(0.5).setScrollFactor(0).setDepth(25).setAlpha(0.9);
 
     this.tweens.add({
-      targets: hint,
-      alpha: 0,
-      delay: 2500,
-      duration: 1000,
+      targets: hint, alpha: 0, delay: 2500, duration: 1000,
       onComplete: () => hint.destroy(),
     });
   }
 
-  // ── 드래그 컨트롤: 상하=조준각도 / 좌우=카메라 ────────────
+  // ── 드래그 컨트롤 ──────────────────────────────────────────
   _startDragControls() {
     const cfg = window.GameConfig;
     this._isDragging = false;
@@ -143,7 +166,6 @@ class BattleScene extends Phaser.Scene {
     this._lastPY = 0;
 
     this.input.on('pointerdown', (pointer) => {
-      // HUD 영역은 드래그 제외
       if (pointer.y >= cfg.GAME_HEIGHT - cfg.HUD_HEIGHT) return;
       this._isDragging = true;
       this._lastPX = pointer.x;
@@ -156,33 +178,29 @@ class BattleScene extends Phaser.Scene {
       const dx = pointer.x - this._lastPX;
       const dy = pointer.y - this._lastPY;
 
-      // 상하 드래그 → 화살 각도 (위로 올리면 각도 감소 = 더 멀리)
-      const angleDelta = -dy * 0.25;
+      // 위아래 → 각도
       this._arrowAngle = Phaser.Math.Clamp(
-        this._arrowAngle + angleDelta,
-        cfg.ARROW_ANGLE_MIN,
-        cfg.ARROW_ANGLE_MAX
+        this._arrowAngle - dy * 0.25,
+        cfg.ARROW_ANGLE_MIN, cfg.ARROW_ANGLE_MAX
       );
       this._angleText.setText('조준 ' + Math.round(this._arrowAngle) + '\u00b0');
       this.allyCastle.setArrowAngle(this._arrowAngle);
 
-      // 좌우 드래그 → 카메라 이동 (손가락 방향 반대로 스크롤)
-      const maxScroll = cfg.WORLD_WIDTH - cfg.GAME_WIDTH;
+      // 좌우 → 카메라
       this.cameras.main.scrollX = Phaser.Math.Clamp(
         this.cameras.main.scrollX - dx,
-        0,
-        maxScroll
+        0, cfg.WORLD_WIDTH - cfg.GAME_WIDTH
       );
 
       this._lastPX = pointer.x;
       this._lastPY = pointer.y;
     });
 
-    this.input.on('pointerup', () => { this._isDragging = false; });
+    this.input.on('pointerup',  () => { this._isDragging = false; });
     this.input.on('pointerout', () => { this._isDragging = false; });
   }
 
-  // ── 아군 자동 warrior 소환 ─────────────────────────────────
+  // ── 자동 warrior 소환 ──────────────────────────────────────
   _startAutoSpawn() {
     const cfg = window.GameConfig;
     this._autoSpawnTimer = this.time.addEvent({
@@ -192,15 +210,23 @@ class BattleScene extends Phaser.Scene {
     });
   }
 
+  // ── 스킬 슬롯 입력 ─────────────────────────────────────────
+  _onSkillSlotPressed(slotIndex) {
+    if (slotIndex === 0) {
+      // 불화살
+      if (this._fireArrowCooldown > 0) return;
+      this._fireArrowDuration = this._FIRE_DUR;
+      this._fireArrowCooldown = this._FIRE_CD;
+    }
+  }
+
   // ── 소환 요청 ──────────────────────────────────────────────
   _onSummonRequest(unitId) {
     if (this._battleOver) return;
     const save = window.SaveSystem.get();
     const unit = window.UNITS[unitId];
-
     if (unit.isHero && save.heroUsed) return;
     if (!this.costSystem.spend(unit.cost)) return;
-
     if (unit.isHero) {
       save.heroUsed = true;
       window.SaveSystem.persist();
@@ -217,11 +243,9 @@ class BattleScene extends Phaser.Scene {
   // ── 유닛 소환 ──────────────────────────────────────────────
   _spawnAlly(unitId) {
     const cfg = window.GameConfig;
-    const save = window.SaveSystem.get();
-    const stats = window.getUnitStats(unitId, save.upgrades);
+    const stats = window.getUnitStats(unitId, window.SaveSystem.get().upgrades);
     const x = cfg.ALLY_CASTLE_X + 30;
     const y = cfg.BATTLE_Y - stats.radius;
-
     const unit = unitId === 'hero'
       ? new window.Hero(this, x, y, stats)
       : new window.AllyUnit(this, x, y, stats);
@@ -243,8 +267,10 @@ class BattleScene extends Phaser.Scene {
 
   _spawnArrow(x, y, angleDeg, damage) {
     const cfg = window.GameConfig;
+    const isFireArrow = this._fireArrowDuration > 0;
     this.arcProjectiles.push(new window.ArcProjectile(
-      this, x, y, angleDeg, cfg.ARROW_PROJ_SPEED, cfg.ARROW_GRAVITY, damage
+      this, x, y, angleDeg,
+      cfg.ARROW_PROJ_SPEED, cfg.ARROW_GRAVITY, damage, isFireArrow
     ));
   }
 
@@ -254,7 +280,10 @@ class BattleScene extends Phaser.Scene {
 
     this.costSystem.update(delta);
 
-    // 정리
+    // 불화살 타이머
+    if (this._fireArrowCooldown > 0) this._fireArrowCooldown -= delta;
+    if (this._fireArrowDuration > 0) this._fireArrowDuration -= delta;
+
     this.allyUnits    = this.allyUnits.filter(u => u.alive);
     this.enemyUnits   = this.enemyUnits.filter(u => u.alive);
     this.projectiles  = this.projectiles.filter(p => p.alive);
@@ -263,12 +292,19 @@ class BattleScene extends Phaser.Scene {
     for (const u of this.allyUnits)  u.update(delta, this.enemyUnits, this.enemyCastle);
     for (const u of this.enemyUnits) u.update(delta, this.allyUnits,  this.allyCastle);
     for (const p of this.projectiles) p.update(delta);
-
-    // 아군 성 화살: 적 + 아군 모두 충돌 (오사 포함)
     for (const p of this.arcProjectiles) p.update(delta, this.enemyUnits, this.allyUnits);
 
     const liveHero = this.allyUnits.find(u => u instanceof window.Hero) || null;
-    this.hud.update(liveHero);
+
+    // HUD에 스킬 슬롯 상태 전달
+    this.hud.update(liveHero, [
+      {
+        active:       this._fireArrowDuration > 0,
+        cooldownMs:   Math.max(0, this._fireArrowCooldown),
+        durationMs:   Math.max(0, this._fireArrowDuration),
+        maxCooldownMs: this._FIRE_CD,
+      }
+    ]);
 
     this._checkBattleEnd();
   }
@@ -294,8 +330,7 @@ class BattleScene extends Phaser.Scene {
 
     this.time.delayedCall(800, () => {
       this.scene.start('ResultScene', {
-        victory,
-        stageId: this.stageId,
+        victory, stageId: this.stageId,
         reward: victory ? this.stageData.reward : 0,
       });
     });

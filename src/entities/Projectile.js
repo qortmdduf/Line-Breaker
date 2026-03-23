@@ -80,23 +80,25 @@ class ArcProjectile {
    * @param {number} gravity 중력 가속도 (px/s²)
    * @param {number} damage
    */
-  constructor(scene, x, y, angleDeg, speed, gravity, damage) {
+  constructor(scene, x, y, angleDeg, speed, gravity, damage, isFireArrow = false) {
     this.scene = scene;
     this.damage = damage;
+    this.isFireArrow = isFireArrow;
     this.alive = true;
 
     const angleRad = angleDeg * Math.PI / 180;
-    this._vx = speed * Math.cos(angleRad);   // 오른쪽 수평 속도
-    this._vy = -speed * Math.sin(angleRad);  // 위쪽 초속 (음수)
+    this._vx = speed * Math.cos(angleRad);
+    this._vy = -speed * Math.sin(angleRad);
     this._gravity = gravity;
 
     this._x = x;
     this._y = y;
 
-    // 화살: 노란 선분 (8×3)
+    // 불화살: 주황-빨강, 일반: 노랑
+    const color = isFireArrow ? 0xff4400 : 0xffee44;
     this._gfx = scene.add.graphics();
-    this._gfx.fillStyle(0xffee44);
-    this._gfx.fillRect(-4, -1.5, 8, 3);
+    this._gfx.fillStyle(color);
+    this._gfx.fillRect(-5, -2, 10, 4);
     this._gfx.x = x;
     this._gfx.y = y;
     this._gfx.setDepth(5);
@@ -135,7 +137,7 @@ class ArcProjectile {
       return;
     }
 
-    // 충돌 체크 — 적군 + 아군 모두 (아군 오사 포함)
+    // 충돌 체크 — 적군 + 아군 모두 (오사 포함)
     const targets = [...(enemyUnits || []), ...(allyUnits || [])];
     for (const e of targets) {
       if (!e.alive) continue;
@@ -144,6 +146,10 @@ class ArcProjectile {
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist <= e.stats.radius + 6) {
         e.takeDamage(this.damage);
+        // 불화살: 화상 DoT 적용 (중첩 없음, 지속시간 갱신)
+        if (this.isFireArrow && e.applyBurn) {
+          e.applyBurn(Math.max(1, Math.ceil(this.damage * 0.2)), 3000);
+        }
         this._destroy();
         return;
       }

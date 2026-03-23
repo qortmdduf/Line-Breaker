@@ -66,8 +66,12 @@ class Castle {
     // 현재 공격 대상 배열 참조 (BattleScene이 주입)
     this.enemyTargets = null;
 
-    // 아군 성 화살 각도 (도) — BattleScene이 _buildArrowAngleSwitch로 제어
+    // 아군 성 화살 각도
     this.arrowAngle = isAlly ? (window.GameConfig.ARROW_ANGLE || 30) : 0;
+
+    // HP 10% 단위 감소 시 콜백 (아군 성 긴장감 효과용)
+    this.onDamageThreshold = null;
+    this._lastHpTenth = 10;  // 100% = 10
   }
 
   _updateHpBar() {
@@ -91,9 +95,17 @@ class Castle {
 
   takeDamage(amount) {
     if (!this.alive) return;
+    const prevTenth = Math.floor(Math.max(0, this.hp) / this.maxHp * 10);
     this.hp -= amount;
     this._updateHpBar();
     this._updateHpText();
+
+    // 아군 성 HP가 10% 단위로 감소할 때마다 긴장감 효과 발동
+    if (this.isAlly && this.onDamageThreshold) {
+      const newTenth = Math.floor(Math.max(0, this.hp) / this.maxHp * 10);
+      if (newTenth < prevTenth) this.onDamageThreshold();
+    }
+
     if (this.hp <= 0) {
       this.hp = 0;
       this.alive = false;

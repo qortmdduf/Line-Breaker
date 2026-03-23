@@ -31,7 +31,7 @@ window.GameConfig = {
   AUTO_SPAWN_INTERVAL: 6000, // ms (적 웨이브보다 느림 → 기본적으로 밀림)
 
   // UI
-  HUD_HEIGHT: 140,
+  HUD_HEIGHT: 160,
 
   // 색상 팔레트
   COLOR: {

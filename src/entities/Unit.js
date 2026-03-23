@@ -17,9 +17,14 @@ class Unit extends Phaser.GameObjects.Container {
     this.isAlly = isAlly;
     this.hp = stats.hp;
     this.maxHp = stats.hp;
-    this.attackCooldown = 0;  // 남은 쿨다운 ms
-    this.target = null;       // 현재 공격 대상
+    this.attackCooldown = 0;
+    this.target = null;
     this.alive = true;
+
+    // 화상 DoT 상태
+    this._burnDamage = 0;
+    this._burnTimer  = 0;   // ms 남은 시간
+    this._burnAccum  = 0;   // 초당 데미지 누산용
 
     // 이동 방향: 아군은 오른쪽(+1), 적군은 왼쪽(-1)
     this.direction = isAlly ? 1 : -1;
@@ -68,7 +73,10 @@ class Unit extends Phaser.GameObjects.Container {
     const cfg = window.GameConfig;
     const r = this.stats.radius;
     const ratio = Math.max(0, this.hp / this.maxHp);
-    const color = this.isAlly ? cfg.COLOR.HP_GREEN : cfg.COLOR.HP_RED;
+    // 화상 중: 주황색, 평상시: 기본색
+    const color = this._burnTimer > 0
+      ? 0xff6600
+      : (this.isAlly ? cfg.COLOR.HP_GREEN : cfg.COLOR.HP_RED);
 
     this._hpBar.clear();
     if (ratio > 0) {
@@ -82,8 +90,34 @@ class Unit extends Phaser.GameObjects.Container {
    * @param {Unit[]} enemies  - 공격 대상이 될 수 있는 유닛 배열
    * @param {object} enemyCastle  - { x, hp, takeDamage }
    */
+  /**
+   * 화상 디버프 적용 — 중첩 없음, 지속시간 갱신
+   * @param {number} damage 초당 데미지
+   * @param {number} duration ms
+   */
+  applyBurn(damage, duration) {
+    this._burnDamage = damage;
+    this._burnTimer  = duration;  // 항상 덮어씌워 갱신 (중첩 불가)
+  }
+
   update(delta, enemies, enemyCastle) {
     if (!this.alive) return;
+
+    // 화상 DoT 처리
+    if (this._burnTimer > 0) {
+      this._burnTimer -= delta;
+      this._burnAccum += delta;
+      if (this._burnAccum >= 1000) {
+        this._burnAccum -= 1000;
+        this.takeDamage(this._burnDamage);
+        if (!this.alive) return;
+      }
+      if (this._burnTimer <= 0) {
+        this._burnTimer = 0;
+        this._burnAccum = 0;
+        this._updateHpBar(); // 화상 색 제거
+      }
+    }
 
     this.attackCooldown -= delta;
 

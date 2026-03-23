@@ -71,7 +71,8 @@ class BattleScene extends Phaser.Scene {
     this._buildRedBorder();
 
     this._buildAngleIndicator();
-    this._startDragControls();
+    this._buildJoystick();
+    this._startJoystickControls();
 
     this._battleOver = false;
     this._buildPauseButton();
@@ -147,57 +148,103 @@ class BattleScene extends Phaser.Scene {
 
     const hint = this.add.text(
       window.GameConfig.GAME_WIDTH / 2, window.GameConfig.BATTLE_Y - 60,
-      '위아래 드래그: 조준  /  좌우 드래그: 화면 이동', {
+      '화면 어디서나 조이스틱: 위아래=조준 / 좌우=화면이동', {
         fontSize: '11px', color: '#ffffff',
         backgroundColor: '#00000088', padding: { x: 6, y: 3 }
       }).setOrigin(0.5).setScrollFactor(0).setDepth(25).setAlpha(0.9);
 
     this.tweens.add({
-      targets: hint, alpha: 0, delay: 2500, duration: 1000,
+      targets: hint, alpha: 0, delay: 3000, duration: 1000,
       onComplete: () => hint.destroy(),
     });
   }
 
-  // ── 드래그 컨트롤 ──────────────────────────────────────────
-  _startDragControls() {
+  // ── 가상 조이스틱 그래픽 생성 ─────────────────────────────
+  _buildJoystick() {
+    const R = 60;   // 베이스 반지름
+    const r = 24;   // 노브 반지름
+    this._joyRadius = R;
+    this._joyActive = false;
+    this._joyHorizRatio = 0;  // -1(왼쪽) ~ +1(오른쪽), 카메라 이동용
+
+    // 베이스 원 (큰 반투명 링)
+    this._joyBaseGfx = this.add.graphics().setScrollFactor(0).setDepth(30);
+    this._joyBaseGfx.fillStyle(0xffffff, 0.08);
+    this._joyBaseGfx.fillCircle(0, 0, R);
+    this._joyBaseGfx.lineStyle(2, 0xffffff, 0.30);
+    this._joyBaseGfx.strokeCircle(0, 0, R);
+    this._joyBaseGfx.setAlpha(0);
+
+    // 방향 표시 삼각형 (위/아래)
+    this._joyDirGfx = this.add.graphics().setScrollFactor(0).setDepth(31);
+    this._joyDirGfx.fillStyle(0xffffff, 0.20);
+    // 위쪽 화살표
+    this._joyDirGfx.fillTriangle(-8, -R + 14, 8, -R + 14, 0, -R + 4);
+    // 아래쪽 화살표
+    this._joyDirGfx.fillTriangle(-8, R - 14, 8, R - 14, 0, R - 4);
+    this._joyDirGfx.setAlpha(0);
+
+    // 노브 (손가락 위치)
+    this._joyKnobGfx = this.add.graphics().setScrollFactor(0).setDepth(32);
+    this._joyKnobGfx.fillStyle(0xffffff, 0.55);
+    this._joyKnobGfx.fillCircle(0, 0, r);
+    this._joyKnobGfx.lineStyle(2, 0xffffff, 0.80);
+    this._joyKnobGfx.strokeCircle(0, 0, r);
+    this._joyKnobGfx.setAlpha(0);
+  }
+
+  // ── 조이스틱 입력 처리 ────────────────────────────────────
+  _startJoystickControls() {
     const cfg = window.GameConfig;
-    this._isDragging = false;
-    this._lastPX = 0;
-    this._lastPY = 0;
 
     this.input.on('pointerdown', (pointer) => {
       if (pointer.y >= cfg.GAME_HEIGHT - cfg.HUD_HEIGHT) return;
-      this._isDragging = true;
-      this._lastPX = pointer.x;
-      this._lastPY = pointer.y;
+
+      this._joyActive = true;
+      this._joyBaseX = pointer.x;
+      this._joyBaseY = pointer.y;
+
+      this._joyBaseGfx.setPosition(pointer.x, pointer.y).setAlpha(1);
+      this._joyDirGfx.setPosition(pointer.x, pointer.y).setAlpha(1);
+      this._joyKnobGfx.setPosition(pointer.x, pointer.y).setAlpha(1);
     });
 
     this.input.on('pointermove', (pointer) => {
-      if (!this._isDragging || !pointer.isDown) return;
+      if (!this._joyActive || !pointer.isDown) return;
 
-      const dx = pointer.x - this._lastPX;
-      const dy = pointer.y - this._lastPY;
+      const dx   = pointer.x - this._joyBaseX;
+      const dy   = pointer.y - this._joyBaseY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const R    = this._joyRadius;
+      const clamp = Math.min(dist, R);
+      const angle = Math.atan2(dy, dx);
 
-      // 위아래 → 각도
-      this._arrowAngle = Phaser.Math.Clamp(
-        this._arrowAngle - dy * 0.25,
-        cfg.ARROW_ANGLE_MIN, cfg.ARROW_ANGLE_MAX
-      );
+      // 노브 위치 (베이스 반지름 안으로 제한)
+      const knobX = this._joyBaseX + Math.cos(angle) * clamp;
+      const knobY = this._joyBaseY + Math.sin(angle) * clamp;
+      this._joyKnobGfx.setPosition(knobX, knobY);
+
+      // 수직 비율: +1=위(노브 위) → 각도 증가(근거리), -1=아래 → 각도 감소(원거리)
+      const vertRatio = -Phaser.Math.Clamp(dy / R, -1, 1);
+      const mid       = (cfg.ARROW_ANGLE_MIN + cfg.ARROW_ANGLE_MAX) / 2;
+      const half      = (cfg.ARROW_ANGLE_MAX - cfg.ARROW_ANGLE_MIN) / 2;
+      this._arrowAngle = mid + vertRatio * half;
       this._angleText.setText('조준 ' + Math.round(this._arrowAngle) + '\u00b0');
       this.allyCastle.setArrowAngle(this._arrowAngle);
 
-      // 좌우 → 카메라
-      this.cameras.main.scrollX = Phaser.Math.Clamp(
-        this.cameras.main.scrollX - dx,
-        0, cfg.WORLD_WIDTH - cfg.GAME_WIDTH
-      );
-
-      this._lastPX = pointer.x;
-      this._lastPY = pointer.y;
+      // 수평 비율: 카메라 연속 이동 속도
+      this._joyHorizRatio = Phaser.Math.Clamp(dx / R, -1, 1);
     });
 
-    this.input.on('pointerup',  () => { this._isDragging = false; });
-    this.input.on('pointerout', () => { this._isDragging = false; });
+    const hide = () => {
+      this._joyActive = false;
+      this._joyHorizRatio = 0;
+      this._joyBaseGfx.setAlpha(0);
+      this._joyDirGfx.setAlpha(0);
+      this._joyKnobGfx.setAlpha(0);
+    };
+    this.input.on('pointerup',  hide);
+    this.input.on('pointerout', hide);
   }
 
   // ── 자동 warrior 소환 ──────────────────────────────────────
@@ -279,6 +326,16 @@ class BattleScene extends Phaser.Scene {
     if (this._battleOver) return;
 
     this.costSystem.update(delta);
+
+    // 조이스틱 수평 → 카메라 연속 이동
+    if (this._joyActive && Math.abs(this._joyHorizRatio) > 0.12) {
+      const cfg = window.GameConfig;
+      const speed = 6 * this._joyHorizRatio;
+      this.cameras.main.scrollX = Phaser.Math.Clamp(
+        this.cameras.main.scrollX + speed,
+        0, cfg.WORLD_WIDTH - cfg.GAME_WIDTH
+      );
+    }
 
     // 불화살 타이머
     if (this._fireArrowCooldown > 0) this._fireArrowCooldown -= delta;

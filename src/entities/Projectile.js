@@ -66,3 +66,94 @@ class Projectile {
 }
 
 window.Projectile = Projectile;
+
+// ── ArcProjectile ─────────────────────────────────────────
+// 각도 기반 포물선 발사체 (아군 성 화살용)
+// 중력의 영향을 받아 날아가며, 경로 상의 적 유닛에 데미지
+class ArcProjectile {
+  /**
+   * @param {Phaser.Scene} scene
+   * @param {number} x 발사 위치 x (월드 좌표)
+   * @param {number} y 발사 위치 y
+   * @param {number} angleDeg 발사 각도 (도, 양수=위쪽)
+   * @param {number} speed 초속 (px/s)
+   * @param {number} gravity 중력 가속도 (px/s²)
+   * @param {number} damage
+   */
+  constructor(scene, x, y, angleDeg, speed, gravity, damage) {
+    this.scene = scene;
+    this.damage = damage;
+    this.alive = true;
+
+    const angleRad = angleDeg * Math.PI / 180;
+    this._vx = speed * Math.cos(angleRad);   // 오른쪽 수평 속도
+    this._vy = -speed * Math.sin(angleRad);  // 위쪽 초속 (음수)
+    this._gravity = gravity;
+
+    this._x = x;
+    this._y = y;
+
+    // 화살: 노란 선분 (8×3)
+    this._gfx = scene.add.graphics();
+    this._gfx.fillStyle(0xffee44);
+    this._gfx.fillRect(-4, -1.5, 8, 3);
+    this._gfx.x = x;
+    this._gfx.y = y;
+    this._gfx.setDepth(5);
+  }
+
+  /**
+   * @param {number} delta ms
+   * @param {Unit[]} enemyUnits 충돌 체크 대상
+   */
+  update(delta, enemyUnits) {
+    if (!this.alive) return;
+
+    const dt = delta / 1000;
+    this._vy += this._gravity * dt;  // 중력 누적
+    this._x += this._vx * dt;
+    this._y += this._vy * dt;
+
+    this._gfx.x = this._x;
+    this._gfx.y = this._y;
+
+    // 화살 방향으로 회전
+    this._gfx.setRotation(Math.atan2(this._vy, this._vx));
+
+    const cfg = window.GameConfig;
+
+    // 지면 도달 시 소멸
+    if (this._y >= cfg.BATTLE_Y) {
+      this._destroy();
+      return;
+    }
+
+    // 월드 범위 밖
+    if (this._x > cfg.WORLD_WIDTH || this._x < 0) {
+      this._destroy();
+      return;
+    }
+
+    // 적 유닛 충돌 체크
+    if (enemyUnits) {
+      for (const e of enemyUnits) {
+        if (!e.alive) continue;
+        const dx = this._x - e.x;
+        const dy = this._y - e.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= e.stats.radius + 6) {
+          e.takeDamage(this.damage);
+          this._destroy();
+          return;
+        }
+      }
+    }
+  }
+
+  _destroy() {
+    this.alive = false;
+    this._gfx.destroy();
+  }
+}
+
+window.ArcProjectile = ArcProjectile;

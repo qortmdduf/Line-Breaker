@@ -56,7 +56,7 @@ window.UNITS = {
     hp: 500,
     atk: 60,
     spd: 70,
-    cost: 8,
+    cost: 150,  // 에너지 최대치 = 풀 충전 필요
     range: 50,
     atkSpd: 800,
     radius: 18,

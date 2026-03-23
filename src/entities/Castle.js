@@ -65,6 +65,9 @@ class Castle {
 
     // 현재 공격 대상 배열 참조 (BattleScene이 주입)
     this.enemyTargets = null;
+
+    // 아군 성 화살 각도 (도) — BattleScene이 _buildArrowAngleSwitch로 제어
+    this.arrowAngle = isAlly ? (window.GameConfig.ARROW_ANGLE || 30) : 0;
   }
 
   _updateHpBar() {
@@ -99,23 +102,33 @@ class Castle {
   }
 
   _shootArrow() {
-    if (!this.alive || !this.enemyTargets || !this.onProjectile) return;
+    if (!this.alive || !this.onProjectile) return;
 
-    // 가장 가까운 적 탐색
-    let closest = null;
-    let closestDist = Infinity;
-    for (const e of this.enemyTargets) {
-      if (!e.alive) continue;
-      const dist = Math.abs(this.x - e.x);
-      if (dist < closestDist) {
-        closest = e;
-        closestDist = dist;
+    if (this.isAlly) {
+      // 아군 성: 각도 기반 포물선 발사 (타겟 불필요)
+      this.onProjectile(this, null);
+    } else {
+      // 적군 성: 가장 가까운 아군 유닛을 직선 추적
+      if (!this.enemyTargets) return;
+      let closest = null;
+      let closestDist = Infinity;
+      for (const e of this.enemyTargets) {
+        if (!e.alive) continue;
+        const dist = Math.abs(this.x - e.x);
+        if (dist < closestDist) {
+          closest = e;
+          closestDist = dist;
+        }
+      }
+      if (closest) {
+        this.onProjectile(this, closest);
       }
     }
+  }
 
-    if (closest) {
-      this.onProjectile(this, closest);
-    }
+  // BattleScene의 각도 스위치에서 호출
+  setArrowAngle(angle) {
+    this.arrowAngle = angle;
   }
 
   // 외부에서 적 배열 주입 (BattleScene이 매 프레임 갱신)

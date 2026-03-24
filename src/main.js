@@ -18,8 +18,8 @@ const phaserConfig = {
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
-    // 세로 모드 고정 — 모바일에서 가로 회전 방지
-    orientation: Phaser.Scale.PORTRAIT,
+    // 가로 모드 고정 — 모바일에서 세로 회전 방지
+    orientation: Phaser.Scale.LANDSCAPE,
   },
   // 물리 엔진 비활성화 — 거리 체크는 직접 구현
   physics: {

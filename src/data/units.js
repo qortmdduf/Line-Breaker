@@ -8,7 +8,7 @@ window.UNITS = {
     hp: 80,
     atk: 15,
     spd: 60,
-    cost: 2,
+    cost: 5,
     range: 40,
     atkSpd: 1000,    // ms
     radius: 12,
@@ -20,7 +20,7 @@ window.UNITS = {
     hp: 50,
     atk: 25,
     spd: 55,
-    cost: 3,
+    cost: 8,
     range: 150,
     atkSpd: 1500,
     radius: 10,
@@ -62,6 +62,18 @@ window.UNITS = {
     radius: 18,
     unlocked: false,
     isHero: true,    // 스테이지당 1회 사용
+  },
+  elite: {
+    id: 'elite',
+    name: '정예병',
+    hp: 300,
+    atk: 35,
+    spd: 40,
+    cost: 0,
+    range: 55,
+    atkSpd: 1000,
+    radius: 20,
+    isElite: true,
   },
 };
 

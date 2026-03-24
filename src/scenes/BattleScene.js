@@ -6,12 +6,12 @@ class BattleScene extends Phaser.Scene {
   }
 
   init(data) {
-    this.stageId = data.stageId || 1;
+    this.stageId   = data.stageId || 1;
     this.stageData = window.STAGES[this.stageId - 1];
   }
 
   create() {
-    const cfg = window.GameConfig;
+    const cfg  = window.GameConfig;
     const save = window.SaveSystem.get();
 
     window.SaveSystem.resetHeroUsed();
@@ -19,14 +19,14 @@ class BattleScene extends Phaser.Scene {
 
     this._buildBackground();
 
-    this.costSystem = new window.CostSystem();
+    this.costSystem  = new window.CostSystem();
     this._arrowAngle = cfg.ARROW_ANGLE;
 
     // 불화살 상태
     this._fireArrowCooldown = 0;   // 남은 쿨타임 ms
     this._fireArrowDuration = 0;   // 남은 활성 시간 ms
-    this._FIRE_CD   = 10000;       // 쿨타임 10초
-    this._FIRE_DUR  = 5000;        // 지속 5초
+    this._FIRE_CD  = 10000;        // 쿨타임 10초
+    this._FIRE_DUR = 5000;         // 지속 5초
 
     const arrowDmgLevel = (save.upgrades['arrow_dmg']) || 0;
     const arrowDmg = cfg.ARROW_BASE_DAMAGE + arrowDmgLevel * 10;
@@ -34,21 +34,21 @@ class BattleScene extends Phaser.Scene {
     this.allyCastle = new window.Castle(
       this, cfg.ALLY_CASTLE_X, true, cfg.CASTLE_HP_ALLY,
       arrowDmg, cfg.ARROW_INTERVAL,
-      (castle) => this._spawnArrow(castle.x, cfg.BATTLE_Y - 100, castle.arrowAngle, arrowDmg)
+      (castle) => this._spawnArrow(castle.x, cfg.BATTLE_Y - 80, castle.arrowAngle, arrowDmg)
     );
 
     this.enemyCastle = new window.Castle(
       this, cfg.ENEMY_CASTLE_X, false, this.stageData.enemyCastleHp,
       cfg.ARROW_BASE_DAMAGE, cfg.ARROW_INTERVAL,
-      (castle, target) => this._spawnProjectile(castle.x, cfg.BATTLE_Y - 80, target, castle.arrowDamage, 300)
+      (castle, target) => this._spawnProjectile(castle.x, cfg.BATTLE_Y - 60, target, castle.arrowDamage, 300)
     );
 
     // 아군 성 HP 감소 시 긴장감 효과
     this.allyCastle.onDamageThreshold = () => this._triggerDamageEffect();
 
-    this.allyUnits    = [];
-    this.enemyUnits   = [];
-    this.projectiles  = [];
+    this.allyUnits     = [];
+    this.enemyUnits    = [];
+    this.projectiles   = [];
     this.arcProjectiles = [];
 
     this.allyCastle.setTargets(this.enemyUnits);
@@ -71,21 +71,22 @@ class BattleScene extends Phaser.Scene {
     this._buildRedBorder();
 
     this._buildAngleIndicator();
-    this._buildJoystick();
+    this._buildAimJoystick();
+    this._buildMoveJoystick();
     this._startJoystickControls();
 
     this._battleOver = false;
     this._buildPauseButton();
 
-    this.add.text(cfg.GAME_WIDTH / 2, 16, this.stageData.label, {
-      fontSize: '16px', color: '#ffffff', align: 'center'
+    this.add.text(cfg.GAME_WIDTH / 2, 12, this.stageData.label, {
+      fontSize: '14px', color: '#ffffff', align: 'center'
     }).setOrigin(0.5).setDepth(10).setScrollFactor(0);
   }
 
   _buildBackground() {
-    const cfg = window.GameConfig;
-    const W = cfg.WORLD_WIDTH;
-    const H = cfg.GAME_HEIGHT;
+    const cfg     = window.GameConfig;
+    const W       = cfg.WORLD_WIDTH;
+    const H       = cfg.GAME_HEIGHT;
     const groundY = cfg.BATTLE_Y;
 
     this.add.graphics().fillStyle(cfg.COLOR.SKY).fillRect(0, 0, W, groundY);
@@ -97,8 +98,8 @@ class BattleScene extends Phaser.Scene {
 
   _buildPauseButton() {
     const cfg = window.GameConfig;
-    const btn = this.add.text(cfg.GAME_WIDTH - 10, 10, '⏸', {
-      fontSize: '22px', color: '#ffffff'
+    const btn = this.add.text(cfg.GAME_WIDTH - 10, 8, '⏸', {
+      fontSize: '20px', color: '#ffffff'
     }).setOrigin(1, 0).setDepth(15).setScrollFactor(0).setInteractive({ useHandCursor: true });
 
     btn.on('pointerdown', () => {
@@ -111,8 +112,8 @@ class BattleScene extends Phaser.Scene {
   // ── 빨간 테두리 (긴장감 효과) ─────────────────────────────
   _buildRedBorder() {
     const cfg = window.GameConfig;
-    const W = cfg.GAME_WIDTH;
-    const H = cfg.GAME_HEIGHT;
+    const W   = cfg.GAME_WIDTH;
+    const H   = cfg.GAME_HEIGHT;
 
     this._redBorder = this.add.graphics().setScrollFactor(0).setDepth(50);
     this._redBorder.lineStyle(12, 0xff0000, 1);
@@ -121,10 +122,7 @@ class BattleScene extends Phaser.Scene {
   }
 
   _triggerDamageEffect() {
-    // 진동
     this.cameras.main.shake(350, 0.014);
-
-    // 빨간 테두리 펄스 (두 번 깜빡임)
     this.tweens.add({
       targets: this._redBorder,
       alpha: { from: 0.9, to: 0 },
@@ -139,112 +137,195 @@ class BattleScene extends Phaser.Scene {
   _buildAngleIndicator() {
     const bg = this.add.graphics().setScrollFactor(0).setDepth(20);
     bg.fillStyle(0x112244, 0.80);
-    bg.fillRoundedRect(6, 34, 72, 22, 5);
+    bg.fillRoundedRect(6, 28, 72, 20, 5);
 
-    this._angleText = this.add.text(42, 45,
+    this._angleText = this.add.text(42, 38,
       '조준 ' + Math.round(this._arrowAngle) + '\u00b0', {
-        fontSize: '12px', color: '#ffdd88'
+        fontSize: '11px', color: '#ffdd88'
       }).setOrigin(0.5).setScrollFactor(0).setDepth(21);
-
-    const hint = this.add.text(
-      window.GameConfig.GAME_WIDTH / 2, window.GameConfig.BATTLE_Y - 60,
-      '화면 어디서나 조이스틱: 위아래=조준 / 좌우=화면이동', {
-        fontSize: '11px', color: '#ffffff',
-        backgroundColor: '#00000088', padding: { x: 6, y: 3 }
-      }).setOrigin(0.5).setScrollFactor(0).setDepth(25).setAlpha(0.9);
-
-    this.tweens.add({
-      targets: hint, alpha: 0, delay: 3000, duration: 1000,
-      onComplete: () => hint.destroy(),
-    });
   }
 
-  // ── 가상 조이스틱 그래픽 생성 ─────────────────────────────
-  _buildJoystick() {
-    const R = 60;   // 베이스 반지름
-    const r = 24;   // 노브 반지름
-    this._joyRadius = R;
-    this._joyActive = false;
-    this._joyHorizRatio = 0;  // -1(왼쪽) ~ +1(오른쪽), 카메라 이동용
+  // ── 조준 조이스틱 (floating) — 수직만 사용, 화살 각도 조절 ──
+  _buildAimJoystick() {
+    const R = 56;   // 베이스 반지름
+    const r = 22;   // 노브 반지름
+    this._aimJoy = {
+      radius: R,
+      active: false,
+      pointerId: -1,
+      baseX: 0, baseY: 0,
+    };
 
-    // 베이스 원 (큰 반투명 링)
-    this._joyBaseGfx = this.add.graphics().setScrollFactor(0).setDepth(30);
-    this._joyBaseGfx.fillStyle(0xffffff, 0.08);
-    this._joyBaseGfx.fillCircle(0, 0, R);
-    this._joyBaseGfx.lineStyle(2, 0xffffff, 0.30);
-    this._joyBaseGfx.strokeCircle(0, 0, R);
-    this._joyBaseGfx.setAlpha(0);
+    // 베이스: 불투명 테두리 + 옅은 채움
+    this._aimBaseGfx = this.add.graphics().setScrollFactor(0).setDepth(30);
+    this._aimBaseGfx.fillStyle(0xffffff, 0.10);
+    this._aimBaseGfx.fillCircle(0, 0, R);
+    this._aimBaseGfx.lineStyle(3, 0xffffff, 0.70);
+    this._aimBaseGfx.strokeCircle(0, 0, R);
+    this._aimBaseGfx.setAlpha(0);
 
-    // 방향 표시 삼각형 (위/아래)
-    this._joyDirGfx = this.add.graphics().setScrollFactor(0).setDepth(31);
-    this._joyDirGfx.fillStyle(0xffffff, 0.20);
-    // 위쪽 화살표
-    this._joyDirGfx.fillTriangle(-8, -R + 14, 8, -R + 14, 0, -R + 4);
-    // 아래쪽 화살표
-    this._joyDirGfx.fillTriangle(-8, R - 14, 8, R - 14, 0, R - 4);
-    this._joyDirGfx.setAlpha(0);
+    // 위아래 방향 힌트 삼각형
+    this._aimDirGfx = this.add.graphics().setScrollFactor(0).setDepth(31);
+    this._aimDirGfx.fillStyle(0xffffff, 0.25);
+    this._aimDirGfx.fillTriangle(-7, -R + 12, 7, -R + 12, 0, -R + 3);
+    this._aimDirGfx.fillTriangle(-7, R - 12, 7, R - 12, 0, R - 3);
+    this._aimDirGfx.setAlpha(0);
 
-    // 노브 (손가락 위치)
-    this._joyKnobGfx = this.add.graphics().setScrollFactor(0).setDepth(32);
-    this._joyKnobGfx.fillStyle(0xffffff, 0.55);
-    this._joyKnobGfx.fillCircle(0, 0, r);
-    this._joyKnobGfx.lineStyle(2, 0xffffff, 0.80);
-    this._joyKnobGfx.strokeCircle(0, 0, r);
-    this._joyKnobGfx.setAlpha(0);
+    // 노브: 진한 흰색
+    this._aimKnobGfx = this.add.graphics().setScrollFactor(0).setDepth(32);
+    this._aimKnobGfx.fillStyle(0xffffff, 0.80);
+    this._aimKnobGfx.fillCircle(0, 0, r);
+    this._aimKnobGfx.lineStyle(2, 0xffffff, 1.0);
+    this._aimKnobGfx.strokeCircle(0, 0, r);
+    this._aimKnobGfx.setAlpha(0);
   }
 
-  // ── 조이스틱 입력 처리 ────────────────────────────────────
+  // ── 이동 조이스틱 (fixed) — 수평만 사용, 카메라 스크롤 ──────
+  // 위치: 스킬 슬롯 첫 번째(불화살) 중앙 바로 위 (항상 화면에 표시)
+  _buildMoveJoystick() {
+    const cfg    = window.GameConfig;
+    const R      = 40;   // 작은 고정 조이스틱
+    const r      = 16;
+    const hudY   = cfg.GAME_HEIGHT - cfg.HUD_HEIGHT;
+
+    // 스킬 슬롯 0의 x 중앙을 기반으로 위치 계산
+    // BattleHUD가 이미 생성되어 있으므로 getSkillSlotX() 사용 가능
+    const slotX  = this.hud.getSkillSlotX(0);
+    const fixedX = slotX;
+    const fixedY = hudY - R - 10;  // 슬롯 위 여백 확보
+
+    this._moveJoy = {
+      radius: R,
+      active: false,
+      pointerId: -1,
+      baseX: fixedX,
+      baseY: fixedY,
+      horizRatio: 0,
+    };
+
+    // 베이스: 낮은 투명도로 항상 표시
+    this._moveBaseGfx = this.add.graphics().setScrollFactor(0).setDepth(30);
+    this._moveBaseGfx.fillStyle(0x44aaff, 0.12);
+    this._moveBaseGfx.fillCircle(0, 0, R);
+    this._moveBaseGfx.lineStyle(2, 0x44aaff, 0.50);
+    this._moveBaseGfx.strokeCircle(0, 0, R);
+    // 좌우 방향 힌트
+    this._moveBaseGfx.fillStyle(0xffffff, 0.20);
+    this._moveBaseGfx.fillTriangle(-R + 3, -5, -R + 3, 5, -R + 12, 0);
+    this._moveBaseGfx.fillTriangle(R - 3, -5, R - 3, 5, R - 12, 0);
+    this._moveBaseGfx.setPosition(fixedX, fixedY).setAlpha(0.4);
+
+    // 노브
+    this._moveKnobGfx = this.add.graphics().setScrollFactor(0).setDepth(31);
+    this._moveKnobGfx.fillStyle(0x44aaff, 0.60);
+    this._moveKnobGfx.fillCircle(0, 0, r);
+    this._moveKnobGfx.lineStyle(2, 0x88ccff, 0.80);
+    this._moveKnobGfx.strokeCircle(0, 0, r);
+    this._moveKnobGfx.setPosition(fixedX, fixedY).setAlpha(0.4);
+  }
+
+  // ── 입력 처리: 두 조이스틱 동시 독립 동작 (pointerId 구분) ──
   _startJoystickControls() {
     const cfg = window.GameConfig;
 
     this.input.on('pointerdown', (pointer) => {
-      if (pointer.y >= cfg.GAME_HEIGHT - cfg.HUD_HEIGHT) return;
+      const hudY = cfg.GAME_HEIGHT - cfg.HUD_HEIGHT;
 
-      this._joyActive = true;
-      this._joyBaseX = pointer.x;
-      this._joyBaseY = pointer.y;
+      // HUD 영역 터치는 무시
+      if (pointer.y >= hudY) return;
 
-      this._joyBaseGfx.setPosition(pointer.x, pointer.y).setAlpha(1);
-      this._joyDirGfx.setPosition(pointer.x, pointer.y).setAlpha(1);
-      this._joyKnobGfx.setPosition(pointer.x, pointer.y).setAlpha(1);
+      const mx = this._moveJoy.baseX;
+      const my = this._moveJoy.baseY;
+      const distToMove = Math.sqrt(
+        (pointer.x - mx) * (pointer.x - mx) +
+        (pointer.y - my) * (pointer.y - my)
+      );
+
+      // 이동 조이스틱 영역 터치
+      if (distToMove <= this._moveJoy.radius * 1.2 && !this._moveJoy.active) {
+        this._moveJoy.active    = true;
+        this._moveJoy.pointerId = pointer.id;
+        this._moveBaseGfx.setAlpha(1.0);
+        this._moveKnobGfx.setAlpha(1.0);
+        return; // 조준 조이스틱과 겹치지 않도록 이른 반환
+      }
+
+      // 조준 조이스틱 영역 터치 (이동 조이스틱 영역 제외)
+      if (!this._aimJoy.active) {
+        this._aimJoy.active    = true;
+        this._aimJoy.pointerId = pointer.id;
+        this._aimJoy.baseX     = pointer.x;
+        this._aimJoy.baseY     = pointer.y;
+
+        this._aimBaseGfx.setPosition(pointer.x, pointer.y).setAlpha(1);
+        this._aimDirGfx.setPosition(pointer.x, pointer.y).setAlpha(1);
+        this._aimKnobGfx.setPosition(pointer.x, pointer.y).setAlpha(1);
+      }
     });
 
     this.input.on('pointermove', (pointer) => {
-      if (!this._joyActive || !pointer.isDown) return;
+      if (!pointer.isDown) return;
 
-      const dx   = pointer.x - this._joyBaseX;
-      const dy   = pointer.y - this._joyBaseY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const R    = this._joyRadius;
-      const clamp = Math.min(dist, R);
-      const angle = Math.atan2(dy, dx);
+      // 이동 조이스틱 처리
+      if (this._moveJoy.active && pointer.id === this._moveJoy.pointerId) {
+        const dx    = pointer.x - this._moveJoy.baseX;
+        const R     = this._moveJoy.radius;
+        const clamp = Phaser.Math.Clamp(dx, -R, R);
+        // 노브는 수평으로만 이동
+        this._moveKnobGfx.setPosition(this._moveJoy.baseX + clamp, this._moveJoy.baseY);
+        this._moveJoy.horizRatio = clamp / R;
+        return;
+      }
 
-      // 노브 위치 (베이스 반지름 안으로 제한)
-      const knobX = this._joyBaseX + Math.cos(angle) * clamp;
-      const knobY = this._joyBaseY + Math.sin(angle) * clamp;
-      this._joyKnobGfx.setPosition(knobX, knobY);
+      // 조준 조이스틱 처리
+      if (this._aimJoy.active && pointer.id === this._aimJoy.pointerId) {
+        const dx   = pointer.x - this._aimJoy.baseX;
+        const dy   = pointer.y - this._aimJoy.baseY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const R    = this._aimJoy.radius;
+        const clamp = Math.min(dist, R);
+        const angle = Math.atan2(dy, dx);
 
-      // 수직 비율: +1=위(노브 위) → 각도 증가(근거리), -1=아래 → 각도 감소(원거리)
-      const vertRatio = -Phaser.Math.Clamp(dy / R, -1, 1);
-      const mid       = (cfg.ARROW_ANGLE_MIN + cfg.ARROW_ANGLE_MAX) / 2;
-      const half      = (cfg.ARROW_ANGLE_MAX - cfg.ARROW_ANGLE_MIN) / 2;
-      this._arrowAngle = mid + vertRatio * half;
-      this._angleText.setText('조준 ' + Math.round(this._arrowAngle) + '\u00b0');
-      this.allyCastle.setArrowAngle(this._arrowAngle);
+        // 노브 위치: 반지름 안으로 제한
+        this._aimKnobGfx.setPosition(
+          this._aimJoy.baseX + Math.cos(angle) * clamp,
+          this._aimJoy.baseY + Math.sin(angle) * clamp
+        );
 
-      // 수평 비율: 카메라 연속 이동 속도
-      this._joyHorizRatio = Phaser.Math.Clamp(dx / R, -1, 1);
+        // 수직 비율만 사용: +1=위(노브 위) → 각도 증가(근거리)
+        const vertRatio = -Phaser.Math.Clamp(dy / R, -1, 1);
+        const mid  = (cfg.ARROW_ANGLE_MIN + cfg.ARROW_ANGLE_MAX) / 2;
+        const half = (cfg.ARROW_ANGLE_MAX - cfg.ARROW_ANGLE_MIN) / 2;
+        this._arrowAngle = mid + vertRatio * half;
+        this._angleText.setText('조준 ' + Math.round(this._arrowAngle) + '\u00b0');
+        this.allyCastle.setArrowAngle(this._arrowAngle);
+      }
     });
 
-    const hide = () => {
-      this._joyActive = false;
-      this._joyHorizRatio = 0;
-      this._joyBaseGfx.setAlpha(0);
-      this._joyDirGfx.setAlpha(0);
-      this._joyKnobGfx.setAlpha(0);
-    };
-    this.input.on('pointerup',  hide);
-    this.input.on('pointerout', hide);
+    this.input.on('pointerup', (pointer) => {
+      this._releaseJoystick(pointer.id);
+    });
+    this.input.on('pointerout', (pointer) => {
+      this._releaseJoystick(pointer.id);
+    });
+  }
+
+  _releaseJoystick(pointerId) {
+    if (this._moveJoy.active && this._moveJoy.pointerId === pointerId) {
+      this._moveJoy.active     = false;
+      this._moveJoy.pointerId  = -1;
+      this._moveJoy.horizRatio = 0;
+      this._moveKnobGfx.setPosition(this._moveJoy.baseX, this._moveJoy.baseY);
+      this._moveBaseGfx.setAlpha(0.4);
+      this._moveKnobGfx.setAlpha(0.4);
+    }
+    if (this._aimJoy.active && this._aimJoy.pointerId === pointerId) {
+      this._aimJoy.active    = false;
+      this._aimJoy.pointerId = -1;
+      this._aimBaseGfx.setAlpha(0);
+      this._aimDirGfx.setAlpha(0);
+      this._aimKnobGfx.setAlpha(0);
+    }
   }
 
   // ── 자동 warrior 소환 ──────────────────────────────────────
@@ -289,7 +370,7 @@ class BattleScene extends Phaser.Scene {
 
   // ── 유닛 소환 ──────────────────────────────────────────────
   _spawnAlly(unitId) {
-    const cfg = window.GameConfig;
+    const cfg   = window.GameConfig;
     const stats = window.getUnitStats(unitId, window.SaveSystem.get().upgrades);
     const x = cfg.ALLY_CASTLE_X + 30;
     const y = cfg.BATTLE_Y - stats.radius;
@@ -300,7 +381,7 @@ class BattleScene extends Phaser.Scene {
   }
 
   _spawnEnemy(unitId) {
-    const cfg = window.GameConfig;
+    const cfg   = window.GameConfig;
     const stats = Object.assign({}, window.UNITS[unitId]);
     const x = cfg.ENEMY_CASTLE_X - 30;
     const y = cfg.BATTLE_Y - stats.radius;
@@ -327,10 +408,10 @@ class BattleScene extends Phaser.Scene {
 
     this.costSystem.update(delta);
 
-    // 조이스틱 수평 → 카메라 연속 이동
-    if (this._joyActive && Math.abs(this._joyHorizRatio) > 0.12) {
-      const cfg = window.GameConfig;
-      const speed = 6 * this._joyHorizRatio;
+    // 이동 조이스틱 수평 → 카메라 연속 이동
+    if (this._moveJoy.active && Math.abs(this._moveJoy.horizRatio) > 0.10) {
+      const cfg   = window.GameConfig;
+      const speed = 5 * this._moveJoy.horizRatio;
       this.cameras.main.scrollX = Phaser.Math.Clamp(
         this.cameras.main.scrollX + speed,
         0, cfg.WORLD_WIDTH - cfg.GAME_WIDTH
@@ -341,9 +422,9 @@ class BattleScene extends Phaser.Scene {
     if (this._fireArrowCooldown > 0) this._fireArrowCooldown -= delta;
     if (this._fireArrowDuration > 0) this._fireArrowDuration -= delta;
 
-    this.allyUnits    = this.allyUnits.filter(u => u.alive);
-    this.enemyUnits   = this.enemyUnits.filter(u => u.alive);
-    this.projectiles  = this.projectiles.filter(p => p.alive);
+    this.allyUnits     = this.allyUnits.filter(u => u.alive);
+    this.enemyUnits    = this.enemyUnits.filter(u => u.alive);
+    this.projectiles   = this.projectiles.filter(p => p.alive);
     this.arcProjectiles = this.arcProjectiles.filter(p => p.alive);
 
     for (const u of this.allyUnits)  u.update(delta, this.enemyUnits, this.enemyCastle);
@@ -353,14 +434,15 @@ class BattleScene extends Phaser.Scene {
 
     const liveHero = this.allyUnits.find(u => u instanceof window.Hero) || null;
 
-    // HUD에 스킬 슬롯 상태 전달
+    // HUD에 스킬 슬롯 상태 전달 (6칸)
     this.hud.update(liveHero, [
       {
-        active:       this._fireArrowDuration > 0,
-        cooldownMs:   Math.max(0, this._fireArrowCooldown),
-        durationMs:   Math.max(0, this._fireArrowDuration),
+        active:        this._fireArrowDuration > 0,
+        cooldownMs:    Math.max(0, this._fireArrowCooldown),
+        durationMs:    Math.max(0, this._fireArrowDuration),
         maxCooldownMs: this._FIRE_CD,
-      }
+      },
+      null, null, null, null, null,  // 빈 슬롯 5개
     ]);
 
     this._checkBattleEnd();

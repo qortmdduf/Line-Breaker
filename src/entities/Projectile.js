@@ -85,6 +85,8 @@ class ArcProjectile {
     this.damage = damage;
     this.isFireArrow = isFireArrow;
     this.alive = true;
+    // 관통: 이미 맞은 유닛을 추적해 중복 피해 방지
+    this._hitTargets = new Set();
 
     const angleRad = angleDeg * Math.PI / 180;
     this._vx = speed * Math.cos(angleRad);
@@ -137,21 +139,22 @@ class ArcProjectile {
       return;
     }
 
-    // 충돌 체크 — 적군 + 아군 모두 (오사 포함)
+    // 충돌 체크 — 적군 + 아군 모두 (오사 포함), 관통 적용
     const targets = [...(enemyUnits || []), ...(allyUnits || [])];
     for (const e of targets) {
       if (!e.alive) continue;
+      if (this._hitTargets.has(e)) continue; // 이미 맞은 유닛 skip
       const dx = this._x - e.x;
       const dy = this._y - e.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist <= e.stats.radius + 6) {
+        this._hitTargets.add(e);
         e.takeDamage(this.damage);
         // 불화살: 화상 DoT 적용 (중첩 없음, 지속시간 갱신)
         if (this.isFireArrow && e.applyBurn) {
           e.applyBurn(Math.max(1, Math.ceil(this.damage * 0.2)), 3000);
         }
-        this._destroy();
-        return;
+        // 관통: destroy 없이 계속 진행
       }
     }
   }

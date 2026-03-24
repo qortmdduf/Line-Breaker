@@ -6,10 +6,19 @@ class EnemyUnit extends Unit {
     // 적군은 isAlly=false
     super(scene, x, y, stats, false);
     this.unitId = stats.id;
+
+    // 엘리트: Container 전체를 1.5배 확대 (몸체 + HP바 포함)
+    if (stats.isElite) {
+      this.setScale(1.5);
+    }
   }
 
   _getColor() {
     const cfg = window.GameConfig;
+
+    // 엘리트: 진한 붉은색으로 구분
+    if (this.stats.isElite) return 0x8b0000;
+
     const colorMap = {
       warrior: cfg.COLOR.WARRIOR_ENEMY,
       archer:  cfg.COLOR.ARCHER_ENEMY,

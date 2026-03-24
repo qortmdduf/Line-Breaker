@@ -21,7 +21,7 @@ window.STAGES = [
   {
     id: 3,
     enemyCastleHp: 1200,
-    enemyUnits: ['warrior', 'archer', 'knight'],
+    enemyUnits: ['warrior', 'archer', 'knight', 'elite'],
     spawnInterval: 3000,
     reward: 120,
     label: 'Stage 3',
@@ -29,7 +29,7 @@ window.STAGES = [
   {
     id: 4,
     enemyCastleHp: 1800,
-    enemyUnits: ['warrior', 'archer', 'knight', 'mage'],
+    enemyUnits: ['warrior', 'archer', 'knight', 'mage', 'elite'],
     spawnInterval: 2500,
     reward: 180,
     label: 'Stage 4',
@@ -37,7 +37,7 @@ window.STAGES = [
   {
     id: 5,
     enemyCastleHp: 2500,
-    enemyUnits: ['warrior', 'archer', 'knight', 'mage', 'hero'],
+    enemyUnits: ['warrior', 'archer', 'knight', 'mage', 'hero', 'elite'],
     spawnInterval: 2000,
     reward: 250,
     label: 'Stage 5',

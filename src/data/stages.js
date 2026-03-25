@@ -43,3 +43,16 @@ window.STAGES = [
     label: 'Stage 5',
   },
 ];
+
+// [PROTO BEGIN] — 프로토타입 스테이지
+// 삭제 방법: 이 블록 전체 제거 후 LobbyScene, BattleScene의 [PROTO] 블록도 제거
+// 복원 방법: DOCS/FEATURES/PROTO_GUIDE.md 참조
+window.PROTO_STAGE = {
+  id: 'proto',
+  enemyCastleHp: 800,
+  enemyUnits: ['warrior', 'archer', 'knight'],
+  spawnInterval: 3000,
+  reward: 0,
+  label: 'PROTOTYPE',
+};
+// [PROTO END]

@@ -8,7 +8,7 @@ window.GameConfig = {
 
   // 코스트 시스템
   COST_MAX: 150,
-  COST_REGEN_RATE: 0.4,     // 초당 0.4 코스트
+  COST_REGEN_RATE: 1.2,     // 초당 1.2 코스트
 
   // 성 HP
   CASTLE_HP_ALLY: 100,
@@ -20,7 +20,7 @@ window.GameConfig = {
   ARROW_GRAVITY: 600,       // px/s² (중력 가속도)
   ARROW_ANGLE: 30,          // 기본 발사 각도 (도)
   ARROW_ANGLE_MIN: 5,       // 최소 각도 (성 바로 앞)
-  ARROW_ANGLE_MAX: 88,      // 최대 각도 (거의 수직, 성벽 바로 앞)
+  ARROW_ANGLE_MAX: 45,      // 최대 각도 (45도, 조작감 개선)
 
   // 전투 레이아웃
   ALLY_CASTLE_X: 60,
@@ -44,6 +44,10 @@ window.GameConfig = {
     KNIGHT_ALLY: 0x888888,
     MAGE_ALLY: 0x9933cc,
     HERO_ALLY: 0xffd700,
+    SHIELDER_ALLY: 0xaaaaaa,     // 회색
+    PALADIN_ALLY: 0xffcc00,      // 황금색
+    SERPENT_MAGE_ALLY: 0x00cc88, // 청록
+    ELITE_ENEMY: 0xcc44cc,       // 자주
     WARRIOR_ENEMY: 0xff8c00,
     ARCHER_ENEMY: 0xffff00,
     KNIGHT_ENEMY: 0x555555,

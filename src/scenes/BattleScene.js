@@ -7,7 +7,10 @@ class BattleScene extends Phaser.Scene {
 
   init(data) {
     this.stageId   = data.stageId || 1;
-    this.stageData = window.STAGES[this.stageId - 1];
+    // [PROTO BEGIN]
+    this.isProto   = data.isProto || false;
+    this.stageData = this.isProto ? window.PROTO_STAGE : window.STAGES[this.stageId - 1];
+    // [PROTO END]
   }
 
   create() {
@@ -64,7 +67,10 @@ class BattleScene extends Phaser.Scene {
       this, this.costSystem,
       (unitId)    => this._onSummonRequest(unitId),
       ()          => this._onSkillRequest(),
-      (slotIndex) => this._onSkillSlotPressed(slotIndex)
+      (slotIndex) => this._onSkillSlotPressed(slotIndex),
+      // [PROTO BEGIN]
+      { isProto: this.isProto }
+      // [PROTO END]
     );
 
     // 빨간 테두리 그래픽 (HP 감소 시 펄스)
@@ -188,11 +194,9 @@ class BattleScene extends Phaser.Scene {
     const r      = 16;
     const hudY   = cfg.GAME_HEIGHT - cfg.HUD_HEIGHT;
 
-    // 스킬 슬롯 0의 x 중앙을 기반으로 위치 계산
-    // BattleHUD가 이미 생성되어 있으므로 getSkillSlotX() 사용 가능
-    const slotX  = this.hud.getSkillSlotX(0);
-    const fixedX = slotX;
-    const fixedY = hudY - R - 10;  // 슬롯 위 여백 확보
+    // 화면 가로 중앙 고정 — HUD 슬롯 개수 변경에 독립적
+    const fixedX = cfg.GAME_WIDTH / 2;
+    const fixedY = hudY - R - 10;
 
     this._moveJoy = {
       radius: R,
@@ -277,22 +281,19 @@ class BattleScene extends Phaser.Scene {
         return;
       }
 
-      // 조준 조이스틱 처리
+      // 조준 조이스틱 처리: 수직만 사용 (x는 baseX 고정)
       if (this._aimJoy.active && pointer.id === this._aimJoy.pointerId) {
-        const dx   = pointer.x - this._aimJoy.baseX;
-        const dy   = pointer.y - this._aimJoy.baseY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const R    = this._aimJoy.radius;
-        const clamp = Math.min(dist, R);
-        const angle = Math.atan2(dy, dx);
+        const dy = pointer.y - this._aimJoy.baseY;
+        const R  = this._aimJoy.radius;
+        const clampY = Phaser.Math.Clamp(dy, -R, R);
 
-        // 노브 위치: 반지름 안으로 제한
+        // 노브: x 고정, y만 이동
         this._aimKnobGfx.setPosition(
-          this._aimJoy.baseX + Math.cos(angle) * clamp,
-          this._aimJoy.baseY + Math.sin(angle) * clamp
+          this._aimJoy.baseX,
+          this._aimJoy.baseY + clampY
         );
 
-        // 수직 비율만 사용: +1=위(노브 위) → 각도 증가(근거리)
+        // 수직 비율 → 발사 각도 계산
         const vertRatio = -Phaser.Math.Clamp(dy / R, -1, 1);
         const mid  = (cfg.ARROW_ANGLE_MIN + cfg.ARROW_ANGLE_MAX) / 2;
         const half = (cfg.ARROW_ANGLE_MAX - cfg.ARROW_ANGLE_MIN) / 2;
@@ -360,6 +361,9 @@ class BattleScene extends Phaser.Scene {
       window.SaveSystem.persist();
       this.hud.markHeroUsed();
     }
+    // [PROTO BEGIN]
+    // 프로토 모드는 해금 여부 미검사 — HUD에서 이미 처리됨
+    // [PROTO END]
     this._spawnAlly(unitId);
   }
 
@@ -374,9 +378,12 @@ class BattleScene extends Phaser.Scene {
     const stats = window.getUnitStats(unitId, window.SaveSystem.get().upgrades);
     const x = cfg.ALLY_CASTLE_X + 30;
     const y = cfg.BATTLE_Y - stats.radius;
-    const unit = unitId === 'hero'
-      ? new window.Hero(this, x, y, stats)
-      : new window.AllyUnit(this, x, y, stats);
+    let unit;
+    if (unitId === 'hero') unit = new window.Hero(this, x, y, stats);
+    // [PROTO BEGIN]
+    else if (unitId === 'paladin') unit = new window.Paladin(this, x, y, stats);
+    // [PROTO END]
+    else unit = new window.AllyUnit(this, x, y, stats);
     this.allyUnits.push(unit);
   }
 
@@ -385,7 +392,11 @@ class BattleScene extends Phaser.Scene {
     const stats = Object.assign({}, window.UNITS[unitId]);
     const x = cfg.ENEMY_CASTLE_X - 30;
     const y = cfg.BATTLE_Y - stats.radius;
-    this.enemyUnits.push(new window.EnemyUnit(this, x, y, stats));
+    const unit = new window.EnemyUnit(this, x, y, stats);
+    // [PROTO BEGIN] — 킬 시 코스트 획득
+    unit.onDie = (u) => this.costSystem.gainCost(u.stats.killCostReward || 5);
+    // [PROTO END]
+    this.enemyUnits.push(unit);
   }
 
   // ── 투사체 ─────────────────────────────────────────────────
@@ -427,7 +438,13 @@ class BattleScene extends Phaser.Scene {
     this.projectiles   = this.projectiles.filter(p => p.alive);
     this.arcProjectiles = this.arcProjectiles.filter(p => p.alive);
 
-    for (const u of this.allyUnits)  u.update(delta, this.enemyUnits, this.enemyCastle);
+    // [PROTO BEGIN] — 팔라딘 버프 매 프레임 리셋 (Paladin._applyAura가 재합산)
+    for (const u of this.allyUnits) {
+      u._paladinDmgReduction = 0;
+      u._paladinAtkBonus = 0;
+    }
+    // [PROTO END]
+    for (const u of this.allyUnits)  u.update(delta, this.enemyUnits, this.enemyCastle, this.allyUnits);
     for (const u of this.enemyUnits) u.update(delta, this.allyUnits,  this.allyCastle);
     for (const p of this.projectiles) p.update(delta);
     for (const p of this.arcProjectiles) p.update(delta, this.enemyUnits, this.allyUnits);
@@ -461,10 +478,16 @@ class BattleScene extends Phaser.Scene {
     if (this._autoSpawnTimer) this._autoSpawnTimer.remove(false);
 
     if (victory) {
-      const save = window.SaveSystem.get();
-      window.CurrencySystem.addGold(this.stageData.reward);
-      if (!save.clearedStages.includes(this.stageId)) save.clearedStages.push(this.stageId);
-      window.SaveSystem.persist();
+      // [PROTO BEGIN]
+      if (!this.isProto) {
+      // [PROTO END]
+        const save = window.SaveSystem.get();
+        window.CurrencySystem.addGold(this.stageData.reward);
+        if (!save.clearedStages.includes(this.stageId)) save.clearedStages.push(this.stageId);
+        window.SaveSystem.persist();
+      // [PROTO BEGIN]
+      }
+      // [PROTO END]
     }
 
     this.time.delayedCall(800, () => {

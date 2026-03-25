@@ -22,6 +22,11 @@ class CostSystem {
     return true;
   }
 
+  // 킬 보상 등으로 코스트 획득
+  gainCost(amount) {
+    this.current = Math.min(this.max, this.current + amount);
+  }
+
   // 0~1 비율 반환 (HUD 바 렌더링용)
   getRatio() {
     return this.current / this.max;

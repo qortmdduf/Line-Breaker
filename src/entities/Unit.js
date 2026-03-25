@@ -21,6 +21,13 @@ class Unit extends Phaser.GameObjects.Container {
     this.target = null;
     this.alive = true;
 
+    // 사망 시 콜백 (e.g. 킬 코스트 획득)
+    this.onDie = null;
+
+    // 팔라딘 버프: 매 프레임 BattleScene에서 리셋 후 Paladin._applyAura가 재설정
+    this._paladinDmgReduction = 0;  // 피해 감소 비율 (0~0.3)
+    this._paladinAtkBonus = 0;      // ATK 증가 비율 (0~0.6)
+
     // 화상 DoT 상태
     this._burnDamage = 0;
     this._burnTimer  = 0;   // ms 남은 시간
@@ -125,8 +132,8 @@ class Unit extends Phaser.GameObjects.Container {
     this.target = this._findTarget(enemies);
 
     if (this.target) {
-      // 사거리 안: 공격
-      if (this.attackCooldown <= 0) {
+      // 사거리 안: 공격 (방패병은 공격 능력 없음)
+      if (this.attackCooldown <= 0 && !this.stats.isShielder) {
         this._doAttack(this.target);
       }
     } else {
@@ -136,7 +143,7 @@ class Unit extends Phaser.GameObjects.Container {
       // 적 성에 닿으면 공격
       const distToCastle = Math.abs(this.x - enemyCastle.x);
       if (distToCastle <= this.stats.range) {
-        if (this.attackCooldown <= 0) {
+        if (this.attackCooldown <= 0 && !this.stats.isShielder) {
           this.attackCooldown = this.stats.atkSpd;
           enemyCastle.takeDamage(this.stats.atk);
         }
@@ -165,11 +172,15 @@ class Unit extends Phaser.GameObjects.Container {
 
   _doAttack(target) {
     this.attackCooldown = this.stats.atkSpd;
-    target.takeDamage(this.stats.atk);
+    // 팔라딘 ATK 버프 반영
+    const effectiveAtk = Math.floor(this.stats.atk * (1 + this._paladinAtkBonus));
+    target.takeDamage(effectiveAtk);
   }
 
   takeDamage(amount) {
     if (!this.alive) return;
+    // 팔라딘 피해 감소 버프 반영
+    amount = Math.max(1, Math.floor(amount * (1 - this._paladinDmgReduction)));
     this.hp -= amount;
     this._updateHpBar();
     if (this.hp <= 0) {
@@ -179,6 +190,7 @@ class Unit extends Phaser.GameObjects.Container {
 
   die() {
     this.alive = false;
+    if (this.onDie) this.onDie(this);
     this.destroy();
   }
 }

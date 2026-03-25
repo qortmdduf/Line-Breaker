@@ -35,6 +35,16 @@ class LobbyScene extends Phaser.Scene {
     const startY = 130;
     const gap = 100;
 
+    // [PROTO BEGIN]
+    const protoBtn = this.add.text(cfg.GAME_WIDTH / 2, startY - 70, '⚗ PROTOTYPE', {
+      fontSize: '18px', color: '#ffffff',
+      backgroundColor: '#663366', padding: { x: 20, y: 10 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    protoBtn.on('pointerdown', () => {
+      this.scene.start('BattleScene', { stageId: 0, isProto: true });
+    });
+    // [PROTO END]
+
     stages.forEach((stage, i) => {
       const cleared = save.clearedStages.includes(stage.id);
       // 스테이지 1은 항상 해금, 나머지는 이전 스테이지 클리어 시

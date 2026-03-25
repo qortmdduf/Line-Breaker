@@ -3,12 +3,15 @@
 // 영웅은 8번 슬롯으로 통합 (별도 heroButton 폐기)
 
 class BattleHUD {
-  constructor(scene, costSystem, onSummon, onSkill, onSkillSlot) {
+  constructor(scene, costSystem, onSummon, onSkill, onSkillSlot, options = {}) {
     this.scene = scene;
     this.costSystem = costSystem;
     this.onSummon    = onSummon;
     this.onSkill     = onSkill;
     this.onSkillSlot = onSkillSlot;  // (slotIndex) => void
+    // [PROTO BEGIN]
+    this._isProto = options.isProto || false;
+    // [PROTO END]
 
     const cfg  = window.GameConfig;
     const W    = cfg.GAME_WIDTH;   // 844
@@ -117,10 +120,16 @@ class BattleHUD {
   }
 
   // ── 유닛 소환 버튼 8칸 ──────────────────────────────────────
-  // 슬롯 배열: 0=warrior, 1=archer, 2~6=null(잠금), 7=hero
+  // 일반: 0=warrior, 1=archer, 2~6=null(잠금), 7=hero
+  // 프로토: warrior, archer, shielder, mage, knight, paladin, serpent_mage, hero (전체 해금)
   _buildUnitBar(W, hudY) {
     const save  = window.SaveSystem.get();
-    const slots = ['warrior', 'archer', null, null, null, null, null, 'hero'];
+
+    // [PROTO BEGIN]
+    const slots = this._isProto
+      ? ['warrior', 'archer', 'shielder', 'mage', 'knight', 'paladin', 'serpent_mage', 'hero']
+      : ['warrior', 'archer', null, null, null, null, null, 'hero'];
+    // [PROTO END]
 
     const slotW  = 80;
     const gap    = 4;
@@ -133,12 +142,24 @@ class BattleHUD {
       const bx = startX + i * (slotW + gap);
 
       if (id === 'hero') {
-        // 영웅 슬롯은 별도 처리 (1회 사용 제한)
-        const heroAvailable = save.unlockedUnits.includes('hero') && !save.heroUsed;
+        // 영웅 슬롯: 프로토 모드에서는 해금 여부 무관 항상 활성
+        // [PROTO BEGIN]
+        const heroAvailable = this._isProto
+          ? !save.heroUsed
+          : (save.unlockedUnits.includes('hero') && !save.heroUsed);
+        // [PROTO END]
         this._buildHeroSlot(i, bx, btnY, slotW, btnH, heroAvailable);
-      } else if (id && save.unlockedUnits.includes(id)) {
-        const btn = this._makeUnitButton(id, bx, btnY, slotW, btnH);
-        this._buttons.push({ id, btn });
+      } else if (id) {
+        // [PROTO BEGIN]
+        // 프로토 모드는 해금 검사 생략
+        const isUnlocked = this._isProto || save.unlockedUnits.includes(id);
+        // [PROTO END]
+        if (isUnlocked) {
+          const btn = this._makeUnitButton(id, bx, btnY, slotW, btnH);
+          this._buttons.push({ id, btn });
+        } else {
+          this._makeLockedSlot(bx, btnY, slotW, btnH);
+        }
       } else {
         this._makeLockedSlot(bx, btnY, slotW, btnH);
       }

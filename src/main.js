@@ -4,8 +4,6 @@
 
 const phaserConfig = {
   type: Phaser.AUTO,
-  width: window.GameConfig.GAME_WIDTH,
-  height: window.GameConfig.GAME_HEIGHT,
   backgroundColor: '#0d1b2a',
   scene: [
     window.BootScene,
@@ -18,6 +16,8 @@ const phaserConfig = {
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: window.GameConfig.GAME_WIDTH,
+    height: window.GameConfig.GAME_HEIGHT,
     // 가로 모드 고정 — 모바일에서 세로 회전 방지
     orientation: Phaser.Scale.LANDSCAPE,
   },

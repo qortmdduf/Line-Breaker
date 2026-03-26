@@ -15,6 +15,16 @@ window.PROTO_STAGE = { ... };
 // [PROTO END]
 ```
 
+### 1-A. src/scenes/BattleScene.js (_spawnEnemy 내 multiplier)
+`_spawnEnemy` 메서드 내 적 스탯 배율 적용 코드 제거:
+```javascript
+const hpMult  = (this.stageData.enemyHpMult  !== undefined) ? this.stageData.enemyHpMult  : 1.0;
+const atkMult = (this.stageData.enemyAtkMult !== undefined) ? this.stageData.enemyAtkMult : 1.0;
+stats.hp  = Math.max(1, Math.floor(stats.hp  * hpMult));
+stats.atk = Math.max(1, Math.floor(stats.atk * atkMult));
+```
+(단, 일반 스테이지별 난이도 조정에도 사용하는 구조이므로, 일반 스테이지에서 사용할 예정이라면 제거하지 않아도 됨)
+
 ### 2. src/scenes/LobbyScene.js
 `create()` 내의 PROTOTYPE 버튼 블록 제거:
 ```

@@ -54,5 +54,8 @@ window.PROTO_STAGE = {
   spawnInterval: 3000,
   reward: 0,
   label: 'PROTOTYPE',
+  // 프로토 밸런스: 적 스탯 감소 (깰 수 있도록, 너무 쉽지 않게)
+  enemyHpMult:  0.60,
+  enemyAtkMult: 0.50,
 };
 // [PROTO END]

@@ -8,7 +8,7 @@ window.GameConfig = {
 
   // 코스트 시스템
   COST_MAX: 150,
-  COST_REGEN_RATE: 1.2,     // 초당 1.2 코스트
+  COST_REGEN_RATE: 3.6,     // 초당 3.6 코스트 (프로토 3배)
 
   // 성 HP
   CASTLE_HP_ALLY: 100,

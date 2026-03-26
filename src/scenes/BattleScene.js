@@ -390,6 +390,11 @@ class BattleScene extends Phaser.Scene {
   _spawnEnemy(unitId) {
     const cfg   = window.GameConfig;
     const stats = Object.assign({}, window.UNITS[unitId]);
+    // 스테이지별 적 스탯 배율 적용 (PROTO_STAGE 등에서 밸런스 조정)
+    const hpMult  = (this.stageData.enemyHpMult  !== undefined) ? this.stageData.enemyHpMult  : 1.0;
+    const atkMult = (this.stageData.enemyAtkMult !== undefined) ? this.stageData.enemyAtkMult : 1.0;
+    stats.hp  = Math.max(1, Math.floor(stats.hp  * hpMult));
+    stats.atk = Math.max(1, Math.floor(stats.atk * atkMult));
     const x = cfg.ENEMY_CASTLE_X - 30;
     const y = cfg.BATTLE_Y - stats.radius;
     const unit = new window.EnemyUnit(this, x, y, stats);

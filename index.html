@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>LineBreaker</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#000000" />
+  <link rel="apple-touch-icon" href="icons/icon.svg" />
   <style>
     * {
       margin: 0;
@@ -79,6 +82,15 @@
 
   <!-- 7. 진입점 (반드시 마지막) -->
   <script src="src/main.js"></script>
+
+  <!-- PWA 서비스 워커 등록 -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+  </script>
 
 </body>
 </html>

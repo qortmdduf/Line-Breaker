@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#0a0a1a"/>
+  <rect x="60" y="230" width="392" height="8" rx="4" fill="#44aaff"/>
+  <polygon points="256,80 310,180 202,180" fill="#44aaff"/>
+  <polygon points="256,432 202,332 310,332" fill="#ff4466"/>
+  <text x="256" y="275" font-size="48" font-family="monospace" font-weight="bold"
+        text-anchor="middle" dominant-baseline="central" fill="#ffffff" letter-spacing="4">LINE</text>
+</svg>

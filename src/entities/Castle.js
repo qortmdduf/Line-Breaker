@@ -69,6 +69,9 @@ class Castle {
     // 아군 성 화살 각도
     this.arrowAngle = isAlly ? (window.GameConfig.ARROW_ANGLE || 30) : 0;
 
+    // 아군 성 화살 활성화 여부
+    this.arrowEnabled = true;
+
     // HP 10% 단위 감소 시 콜백 (아군 성 긴장감 효과용)
     this.onDamageThreshold = null;
     this._lastHpTenth = 10;  // 100% = 10
@@ -117,6 +120,7 @@ class Castle {
     if (!this.alive || !this.onProjectile) return;
 
     if (this.isAlly) {
+      if (!this.arrowEnabled) return; // 화살 발사 비활성화 시 스킵
       // 아군 성: 각도 기반 포물선 발사 (타겟 불필요)
       this.onProjectile(this, null);
     } else {
@@ -141,6 +145,10 @@ class Castle {
   // BattleScene의 각도 스위치에서 호출
   setArrowAngle(angle) {
     this.arrowAngle = angle;
+  }
+
+  setArrowEnabled(enabled) {
+    this.arrowEnabled = enabled;
   }
 
   // 외부에서 적 배열 주입 (BattleScene이 매 프레임 갱신)

@@ -36,6 +36,16 @@ class AllyUnit extends Unit {
     this.attackCooldown = this.stats.atkSpd;
     const atk = Math.floor(this.stats.atk * (1 + this._paladinAtkBonus));
 
+    // 궁수: 투사체 생성
+    if (this.unitId === 'archer') {
+      if (this.scene && this.scene.projectiles) {
+        this.scene.projectiles.push(
+          new window.Projectile(this.scene, this.x, this.y - this.stats.radius, target, atk, 400)
+        );
+      }
+      return;
+    }
+
     if (this.stats.splashRadius && this._lastEnemies) {
       // 범위 공격: 타겟 위치 기준 splashRadius 내 모든 살아있는 적에게 피해
       const sr = this.stats.splashRadius;

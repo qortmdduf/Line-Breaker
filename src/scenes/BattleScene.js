@@ -78,6 +78,7 @@ class BattleScene extends Phaser.Scene {
 
     this._buildAngleIndicator();
     this._buildAimJoystick();
+    this._buildArrowToggle();
     this._buildMoveJoystick();
     this._startJoystickControls();
 
@@ -151,39 +152,82 @@ class BattleScene extends Phaser.Scene {
       }).setOrigin(0.5).setScrollFactor(0).setDepth(21);
   }
 
-  // ── 조준 조이스틱 (floating) — 수직만 사용, 화살 각도 조절 ──
+  // ── 조준 조이스틱 (fixed) — 수직만 사용, 화살 각도 조절 ──
   _buildAimJoystick() {
-    const R = 56;   // 베이스 반지름
-    const r = 22;   // 노브 반지름
+    const cfg  = window.GameConfig;
+    const R    = 40;   // 베이스 반지름 (이동 조이스틱과 동일)
+    const r    = 16;   // 노브 반지름
+    const hudY = cfg.GAME_HEIGHT - cfg.HUD_HEIGHT;
+
+    // 화면 왼쪽 고정, 게임 영역 수직 중앙
+    const fixedX = 60;
+    const fixedY = hudY / 2;
+
     this._aimJoy = {
       radius: R,
       active: false,
       pointerId: -1,
-      baseX: 0, baseY: 0,
+      baseX: fixedX,
+      baseY: fixedY,
     };
 
-    // 베이스: 불투명 테두리 + 옅은 채움
+    // 베이스: 상하 방향 바(캡슐) — 수직 전용
     this._aimBaseGfx = this.add.graphics().setScrollFactor(0).setDepth(30);
     this._aimBaseGfx.fillStyle(0xffffff, 0.10);
-    this._aimBaseGfx.fillCircle(0, 0, R);
-    this._aimBaseGfx.lineStyle(3, 0xffffff, 0.70);
-    this._aimBaseGfx.strokeCircle(0, 0, R);
-    this._aimBaseGfx.setAlpha(0);
+    this._aimBaseGfx.fillRoundedRect(-13, -R, 26, R * 2, 13);
+    this._aimBaseGfx.lineStyle(2, 0xffffff, 0.50);
+    this._aimBaseGfx.strokeRoundedRect(-13, -R, 26, R * 2, 13);
+    // 상하 방향 힌트
+    this._aimBaseGfx.fillStyle(0xffffff, 0.20);
+    this._aimBaseGfx.fillTriangle(-5, -R + 3, 5, -R + 3, 0, -R + 12);
+    this._aimBaseGfx.fillTriangle(-5, R - 3, 5, R - 3, 0, R - 12);
+    this._aimBaseGfx.setPosition(fixedX, fixedY).setAlpha(0.4);
 
-    // 위아래 방향 힌트 삼각형
-    this._aimDirGfx = this.add.graphics().setScrollFactor(0).setDepth(31);
-    this._aimDirGfx.fillStyle(0xffffff, 0.25);
-    this._aimDirGfx.fillTriangle(-7, -R + 12, 7, -R + 12, 0, -R + 3);
-    this._aimDirGfx.fillTriangle(-7, R - 12, 7, R - 12, 0, R - 3);
-    this._aimDirGfx.setAlpha(0);
-
-    // 노브: 진한 흰색
-    this._aimKnobGfx = this.add.graphics().setScrollFactor(0).setDepth(32);
-    this._aimKnobGfx.fillStyle(0xffffff, 0.80);
+    // 노브
+    this._aimKnobGfx = this.add.graphics().setScrollFactor(0).setDepth(31);
+    this._aimKnobGfx.fillStyle(0xffffff, 0.60);
     this._aimKnobGfx.fillCircle(0, 0, r);
-    this._aimKnobGfx.lineStyle(2, 0xffffff, 1.0);
+    this._aimKnobGfx.lineStyle(2, 0xffffff, 0.80);
     this._aimKnobGfx.strokeCircle(0, 0, r);
-    this._aimKnobGfx.setAlpha(0);
+    this._aimKnobGfx.setPosition(fixedX, fixedY).setAlpha(0.4);
+  }
+
+  // ── 성 화살 ON/OFF 스위치 — 조준 조이스틱 바로 아래 ──────
+  _buildArrowToggle() {
+    const cfg    = window.GameConfig;
+    const hudY   = cfg.GAME_HEIGHT - cfg.HUD_HEIGHT;
+    const joyY   = hudY / 2;
+    const joyR   = 40;
+    const toggleX = 60;
+    const toggleY = joyY + joyR + 22;
+
+    this._arrowOn = true;
+
+    this._arrowToggleBg = this.add.graphics().setScrollFactor(0).setDepth(30);
+    this._arrowToggleLabel = this.add.text(toggleX, toggleY, '화살 ON', {
+      fontSize: '11px', color: '#88ccff',
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(31);
+
+    this._drawArrowToggle(toggleX, toggleY);
+
+    const zone = this.add.zone(toggleX, toggleY, 62, 26)
+      .setScrollFactor(0).setDepth(32).setInteractive();
+    zone.on('pointerdown', () => {
+      this._arrowOn = !this._arrowOn;
+      this.allyCastle.setArrowEnabled(this._arrowOn);
+      this._drawArrowToggle(toggleX, toggleY);
+      this._arrowToggleLabel.setText(this._arrowOn ? '화살 ON' : '화살 OFF');
+      this._arrowToggleLabel.setColor(this._arrowOn ? '#88ccff' : '#886666');
+    });
+  }
+
+  _drawArrowToggle(x, y) {
+    this._arrowToggleBg.clear();
+    const color = this._arrowOn ? 0x224466 : 0x442222;
+    this._arrowToggleBg.fillStyle(color, 0.85);
+    this._arrowToggleBg.fillRoundedRect(x - 31, y - 13, 62, 26, 7);
+    this._arrowToggleBg.lineStyle(1, this._arrowOn ? 0x44aaff : 0xaa4444, 0.7);
+    this._arrowToggleBg.strokeRoundedRect(x - 31, y - 13, 62, 26, 7);
   }
 
   // ── 이동 조이스틱 (fixed) — 수평만 사용, 카메라 스크롤 ──────
@@ -253,16 +297,18 @@ class BattleScene extends Phaser.Scene {
         return; // 조준 조이스틱과 겹치지 않도록 이른 반환
       }
 
-      // 조준 조이스틱 영역 터치 (이동 조이스틱 영역 제외)
-      if (!this._aimJoy.active) {
+      // 조준 조이스틱 고정 영역 터치
+      const ax = this._aimJoy.baseX;
+      const ay = this._aimJoy.baseY;
+      const inAimZone =
+        Math.abs(pointer.x - ax) <= 30 &&
+        Math.abs(pointer.y - ay) <= this._aimJoy.radius * 1.4;
+
+      if (inAimZone && !this._aimJoy.active) {
         this._aimJoy.active    = true;
         this._aimJoy.pointerId = pointer.id;
-        this._aimJoy.baseX     = pointer.x;
-        this._aimJoy.baseY     = pointer.y;
-
-        this._aimBaseGfx.setPosition(pointer.x, pointer.y).setAlpha(1);
-        this._aimDirGfx.setPosition(pointer.x, pointer.y).setAlpha(1);
-        this._aimKnobGfx.setPosition(pointer.x, pointer.y).setAlpha(1);
+        this._aimBaseGfx.setAlpha(1.0);
+        this._aimKnobGfx.setAlpha(1.0);
       }
     });
 
@@ -322,9 +368,9 @@ class BattleScene extends Phaser.Scene {
     if (this._aimJoy.active && this._aimJoy.pointerId === pointerId) {
       this._aimJoy.active    = false;
       this._aimJoy.pointerId = -1;
-      this._aimBaseGfx.setAlpha(0);
-      this._aimDirGfx.setAlpha(0);
-      this._aimKnobGfx.setAlpha(0);
+      this._aimKnobGfx.setPosition(this._aimJoy.baseX, this._aimJoy.baseY);
+      this._aimBaseGfx.setAlpha(0.4);
+      this._aimKnobGfx.setAlpha(0.4);
     }
   }
 

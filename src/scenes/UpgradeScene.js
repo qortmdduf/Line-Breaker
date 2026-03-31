@@ -1,6 +1,15 @@
 // UpgradeScene.js — 업그레이드 화면
 // HTML DOM 오버레이 방식으로 네이티브 모바일 스크롤을 구현한다.
 
+// 구세이브 키 마이그레이션 (UpgradeScene 전용)
+function _migrateLevel(save, key) {
+  const upgrades = save.upgrades || {};
+  if (upgrades[key] !== undefined) return upgrades[key];
+  const hpLv  = upgrades[key + '_hp']  || 0;
+  const atkLv = upgrades[key + '_atk'] || 0;
+  return Math.min(5, Math.round((hpLv + atkLv) / 2));
+}
+
 class UpgradeScene extends Phaser.Scene {
   constructor() {
     super({ key: 'UpgradeScene' });
@@ -50,12 +59,8 @@ class UpgradeScene extends Phaser.Scene {
 
     // 섹션 2: 유닛 강화
     rows += this._sectionHTML('유닛 강화');
-    const upgKeys = [
-      'warrior_hp', 'warrior_atk',
-      'archer_hp',  'archer_atk',
-      'knight_hp',  'knight_atk',
-      'mage_hp',    'mage_atk',
-    ];
+    const upgKeys = ['warrior', 'archer', 'knight', 'mage', 'hero'];
+    // hero는 unlockedUnits에 'hero'가 있어야 표시
     for (const key of upgKeys) {
       const upg = window.UPGRADES[key];
       if (upg.requireUnit && !save.unlockedUnits.includes(upg.requireUnit)) continue;
@@ -100,16 +105,17 @@ class UpgradeScene extends Phaser.Scene {
 
   _upgradeRowHTML(key, save, gold) {
     const upg          = window.UPGRADES[key];
-    const currentLevel = save.upgrades[key] || 0;
+    const currentLevel = _migrateLevel(save, key);
     const maxLevel     = upg.maxLevel;
     const cost         = window.calcUpgradeCost(key, currentLevel);
     const maxed        = currentLevel >= maxLevel;
     const canBuy       = !maxed && gold >= cost;
+    const nearEvo      = !maxed && upg.evolutionName && (currentLevel === maxLevel - 1);
 
     let btnStyle, btnText, btnAttr;
     if (maxed) {
-      btnStyle = 'background:#446644;color:#fff;';
-      btnText  = 'MAX';
+      btnStyle = 'background:#664422;color:#ffcc44;font-weight:bold;';
+      btnText  = '진화!';
       btnAttr  = 'disabled';
     } else {
       btnStyle = canBuy
@@ -119,21 +125,24 @@ class UpgradeScene extends Phaser.Scene {
       btnAttr  = canBuy ? `data-action="upgrade" data-key="${key}"` : 'disabled';
     }
 
+    let subInfo = `<div style="font-size:12px;color:#aaa;">Lv ${currentLevel} / ${maxLevel}</div>`;
+    if (maxed && upg.evolutionName) {
+      const abilities = (upg.evolutionAbilities || []).map(a =>
+        `<li style="color:#ffcc44;font-size:10px;">${a}</li>`
+      ).join('');
+      subInfo += `<div style="font-size:11px;color:#ff9944;margin-top:2px;">→ ${upg.evolutionName}</div>`;
+      if (abilities) subInfo += `<ul style="margin:2px 0 0 8px;padding:0;list-style:disc;">${abilities}</ul>`;
+    } else if (nearEvo && upg.evolutionName) {
+      subInfo += `<div style="font-size:10px;color:#aaffaa;">진화까지 1레벨! → ${upg.evolutionName}</div>`;
+    }
+
     return `
-      <div style="
-        background:#223355;border-radius:8px;
-        padding:10px 12px;margin-bottom:8px;
-        display:flex;justify-content:space-between;align-items:center;
-      ">
-        <div>
+      <div style="background:#223355;border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:flex-start;">
+        <div style="flex:1;margin-right:8px;">
           <div style="font-size:14px;">${upg.label}</div>
-          <div style="font-size:12px;color:#aaa;">Lv ${currentLevel} / ${maxLevel}</div>
+          ${subInfo}
         </div>
-        <button ${btnAttr} style="
-          border:none;border-radius:6px;
-          padding:8px 14px;font-size:13px;min-width:64px;
-          ${btnStyle}
-        ">${btnText}</button>
+        <button ${btnAttr} style="border:none;border-radius:6px;padding:8px 14px;font-size:13px;min-width:64px;flex-shrink:0;${btnStyle}">${btnText}</button>
       </div>
     `;
   }
@@ -225,7 +234,7 @@ class UpgradeScene extends Phaser.Scene {
   _doUpgrade(key) {
     const save = window.SaveSystem.get();
     const upg  = window.UPGRADES[key];
-    const currentLevel = save.upgrades[key] || 0;
+    const currentLevel = _migrateLevel(save, key);
     if (currentLevel >= upg.maxLevel) return;
 
     const cost = window.calcUpgradeCost(key, currentLevel);

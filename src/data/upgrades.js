@@ -1,18 +1,61 @@
-// upgrades.js — 업그레이드 트리 데이터
-// window.UPGRADES 로 전역 접근
+// upgrades.js — 업그레이드 정의
+// key: 유닛 ID와 동일 (warrior, archer, knight, mage, hero)
+// evolutionName: 레벨 10 달성 시 표시할 진화 유닛명
+// evolutionAbilities: 진화 시 추가되는 특수 능력 설명 (UI 표시용, 실제 적용은 별도 구현)
 
 window.UPGRADES = {
-  // 유닛 스탯 업그레이드 (최대 5레벨)
-  warrior_hp:  { label: '전사 HP',     base: 30,  maxLevel: 5, requireUnit: 'warrior' },
-  warrior_atk: { label: '전사 공격',   base: 40,  maxLevel: 5, requireUnit: 'warrior' },
-  archer_hp:   { label: '궁수 HP',     base: 35,  maxLevel: 5, requireUnit: 'archer' },
-  archer_atk:  { label: '궁수 공격',   base: 50,  maxLevel: 5, requireUnit: 'archer' },
-  knight_hp:   { label: '기사 HP',     base: 50,  maxLevel: 5, requireUnit: 'knight' },
-  knight_atk:  { label: '기사 공격',   base: 60,  maxLevel: 5, requireUnit: 'knight' },
-  mage_hp:     { label: '마법사 HP',   base: 60,  maxLevel: 5, requireUnit: 'mage' },
-  mage_atk:    { label: '마법사 공격', base: 80,  maxLevel: 5, requireUnit: 'mage' },
-  arrow_dmg:   { label: '성 화살 피해', base: 80, maxLevel: 5, requireUnit: null },
-  arrow_spd:   { label: '성 화살 속도', base: 60, maxLevel: 5, requireUnit: null },
+  warrior: {
+    label: '전사',
+    base: 35,
+    maxLevel: 10,
+    requireUnit: 'warrior',
+    evolutionName: '광전사 (Berserker)',
+    evolutionAbilities: ['공격 시 분노 축적: 일정 확률로 추가 타격'],
+  },
+  archer: {
+    label: '궁수',
+    base: 42,
+    maxLevel: 10,
+    requireUnit: 'archer',
+    evolutionName: '레인저 (Ranger)',
+    evolutionAbilities: ['사거리 증가', '공격속도 향상', '관통 화살: 2명까지 동시 적중'],
+  },
+  knight: {
+    label: '기사',
+    base: 55,
+    maxLevel: 10,
+    requireUnit: 'knight',
+    evolutionName: '철갑 기사 (Iron Knight)',
+    evolutionAbilities: ['피해 25% 감소 (철갑 방어)', 'HP 대폭 증가'],
+  },
+  mage: {
+    label: '마법사',
+    base: 70,
+    maxLevel: 10,
+    requireUnit: 'mage',
+    evolutionName: '대마법사 (Archmage)',
+    evolutionAbilities: ['광역 공격 범위 대폭 확대', '화염 지속 피해 강화'],
+  },
+  hero: {
+    label: '성기사',
+    base: 100,
+    maxLevel: 10,
+    requireUnit: 'hero',
+    evolutionName: '팔라딘 (Paladin)',
+    evolutionAbilities: ['오라 범위 확대', '오라: 주변 유닛 이동속도 +20% 추가'],
+  },
+  arrow_dmg: {
+    label: '성 화살 피해',
+    base: 80,
+    maxLevel: 5,
+    requireUnit: null,
+  },
+  arrow_spd: {
+    label: '성 화살 속도',
+    base: 60,
+    maxLevel: 5,
+    requireUnit: null,
+  },
 };
 
 // 유닛 해금 비용
@@ -22,9 +65,9 @@ window.UNLOCK_COSTS = {
   hero: 500,
 };
 
-// 업그레이드 비용 계산: base × 1.5^현재레벨
+// 업그레이드 비용 계산
 window.calcUpgradeCost = function(key, currentLevel) {
   const upg = window.UPGRADES[key];
-  if (!upg) return Infinity;
+  if (!upg) return 9999;
   return Math.floor(upg.base * Math.pow(1.5, currentLevel));
 };

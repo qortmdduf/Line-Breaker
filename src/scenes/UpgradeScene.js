@@ -1,172 +1,231 @@
 // UpgradeScene.js — 업그레이드 화면
-// 구매 후 씬을 재시작하여 UI를 갱신한다 (단순하고 버그 없는 접근)
-// 콘텐츠가 화면을 초과하므로 카메라 스크롤(드래그)로 탐색
+// HTML DOM 오버레이 방식으로 네이티브 모바일 스크롤을 구현한다.
 
 class UpgradeScene extends Phaser.Scene {
   constructor() {
     super({ key: 'UpgradeScene' });
+    this._overlay = null;
   }
 
   create() {
-    const cfg = window.GameConfig;
-    const W = cfg.GAME_WIDTH;
-    const H = cfg.GAME_HEIGHT;
+    this._buildOverlay();
+  }
+
+  // ── HTML 오버레이 생성 ──────────────────────────────────
+  _buildOverlay() {
     const save = window.SaveSystem.get();
+    const gold = window.CurrencySystem.getGold();
 
-    // 콘텐츠 총 높이를 먼저 계산
-    this._totalContentH = this._estimateContentHeight(save);
+    const overlay = document.createElement('div');
+    overlay.id = 'upgrade-overlay';
+    overlay.style.cssText = [
+      'position:fixed',
+      'top:0', 'left:0',
+      'width:100vw', 'height:100vh',
+      'overflow-y:auto',
+      '-webkit-overflow-scrolling:touch',
+      'overscroll-behavior:contain',
+      'background:#0a1520',
+      'color:#fff',
+      'font-family:sans-serif',
+      'z-index:9999',
+      'box-sizing:border-box',
+    ].join(';');
 
-    // 배경 (콘텐츠 전체 영역 커버)
-    const bg = this.add.graphics();
-    bg.fillStyle(0x0a1520);
-    bg.fillRect(0, 0, W, Math.max(H, this._totalContentH + 80));
+    overlay.innerHTML = this._buildHTML(save, gold);
+    this._attachEvents(overlay);
 
-    // 콘텐츠 빌드
-    this._buildContent(W, H, save);
+    document.body.appendChild(overlay);
+    this._overlay = overlay;
+  }
 
-    // ── 헤더 (고정 — 카메라 스크롤과 무관) ──────────────
-    // setScrollFactor(0)으로 카메라를 따라가지 않게 설정
-    const header = this.add.graphics().setScrollFactor(0).setDepth(20);
-    header.fillStyle(0x1a2a40);
-    header.fillRect(0, 0, W, 64);
+  _buildHTML(save, gold) {
+    let rows = '';
 
-    this.add.text(W / 2, 14, '업그레이드', {
-      fontSize: '22px', color: '#ffffff', fontStyle: 'bold'
-    }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(21);
+    // 섹션 1: 유닛 해금
+    rows += this._sectionHTML('유닛 해금');
+    for (const unitId of ['knight', 'mage', 'hero']) {
+      rows += this._unlockRowHTML(unitId, save, gold);
+    }
 
-    this._goldText = this.add.text(W - 10, 18, window.CurrencySystem.getGold() + ' G', {
-      fontSize: '16px', color: '#ffd700'
-    }).setOrigin(1, 0).setScrollFactor(0).setDepth(21);
+    // 섹션 2: 유닛 강화
+    rows += this._sectionHTML('유닛 강화');
+    const upgKeys = [
+      'warrior_hp', 'warrior_atk',
+      'archer_hp',  'archer_atk',
+      'knight_hp',  'knight_atk',
+      'mage_hp',    'mage_atk',
+    ];
+    for (const key of upgKeys) {
+      const upg = window.UPGRADES[key];
+      if (upg.requireUnit && !save.unlockedUnits.includes(upg.requireUnit)) continue;
+      rows += this._upgradeRowHTML(key, save, gold);
+    }
 
-    const backBtn = this.add.text(10, 18, '← 뒤로', {
-      fontSize: '15px', color: '#aaccff'
-    }).setScrollFactor(0).setDepth(22).setInteractive({ useHandCursor: true });
+    // 섹션 3: 성 화살 강화
+    rows += this._sectionHTML('성 화살 강화');
+    for (const key of ['arrow_dmg', 'arrow_spd']) {
+      rows += this._upgradeRowHTML(key, save, gold);
+    }
 
-    backBtn.on('pointerdown', () => {
+    return `
+      <div style="
+        position:sticky;top:0;
+        background:#1a2a40;
+        padding:12px 16px;
+        display:flex;justify-content:space-between;align-items:center;
+        z-index:10;
+      ">
+        <button id="upg-back" style="
+          background:none;border:none;
+          color:#aaccff;font-size:16px;cursor:pointer;padding:4px 8px;
+        ">← 뒤로</button>
+        <span style="font-size:20px;font-weight:bold;">업그레이드</span>
+        <span style="color:#ffd700;font-size:16px;">${gold} G</span>
+      </div>
+      <div style="padding:8px 10px 48px;">${rows}</div>
+    `;
+  }
+
+  _sectionHTML(label) {
+    return `
+      <div style="
+        font-size:13px;color:#88aacc;font-weight:bold;
+        padding:12px 4px 4px;
+        border-bottom:1px solid #334466;
+        margin-bottom:6px;
+      ">${label}</div>
+    `;
+  }
+
+  _upgradeRowHTML(key, save, gold) {
+    const upg          = window.UPGRADES[key];
+    const currentLevel = save.upgrades[key] || 0;
+    const maxLevel     = upg.maxLevel;
+    const cost         = window.calcUpgradeCost(key, currentLevel);
+    const maxed        = currentLevel >= maxLevel;
+    const canBuy       = !maxed && gold >= cost;
+
+    let btnStyle, btnText, btnAttr;
+    if (maxed) {
+      btnStyle = 'background:#446644;color:#fff;';
+      btnText  = 'MAX';
+      btnAttr  = 'disabled';
+    } else {
+      btnStyle = canBuy
+        ? 'background:#335599;color:#fff;cursor:pointer;'
+        : 'background:#553333;color:#888;';
+      btnText  = cost + 'G';
+      btnAttr  = canBuy ? `data-action="upgrade" data-key="${key}"` : 'disabled';
+    }
+
+    return `
+      <div style="
+        background:#223355;border-radius:8px;
+        padding:10px 12px;margin-bottom:8px;
+        display:flex;justify-content:space-between;align-items:center;
+      ">
+        <div>
+          <div style="font-size:14px;">${upg.label}</div>
+          <div style="font-size:12px;color:#aaa;">Lv ${currentLevel} / ${maxLevel}</div>
+        </div>
+        <button ${btnAttr} style="
+          border:none;border-radius:6px;
+          padding:8px 14px;font-size:13px;min-width:64px;
+          ${btnStyle}
+        ">${btnText}</button>
+      </div>
+    `;
+  }
+
+  _unlockRowHTML(unitId, save, gold) {
+    const unit    = window.UNITS[unitId];
+    const cost    = window.UNLOCK_COSTS[unitId];
+    const unlocked = save.unlockedUnits.includes(unitId);
+    const canBuy  = !unlocked && gold >= cost;
+
+    let btnStyle, btnText, btnAttr, desc;
+    if (unlocked) {
+      btnStyle = 'background:#446644;color:#fff;';
+      btnText  = '완료';
+      btnAttr  = 'disabled';
+      desc     = '<span style="color:#44cc44;">해금 완료</span>';
+    } else {
+      btnStyle = canBuy
+        ? 'background:#885500;color:#ffd700;cursor:pointer;'
+        : 'background:#553333;color:#888;';
+      btnText  = cost + 'G';
+      btnAttr  = canBuy ? `data-action="unlock" data-unit="${unitId}"` : 'disabled';
+      desc     = `<span style="color:#ffdd88;">비용: ${cost} Gold</span>`;
+    }
+
+    return `
+      <div style="
+        background:#332233;border-radius:8px;
+        padding:10px 12px;margin-bottom:8px;
+        display:flex;justify-content:space-between;align-items:center;
+      ">
+        <div>
+          <div style="font-size:14px;">${unit.name} 해금</div>
+          <div style="font-size:12px;">${desc}</div>
+        </div>
+        <button ${btnAttr} style="
+          border:none;border-radius:6px;
+          padding:8px 14px;font-size:13px;min-width:64px;
+          ${btnStyle}
+        ">${btnText}</button>
+      </div>
+    `;
+  }
+
+  // ── 이벤트 연결 ────────────────────────────────────────
+  _attachEvents(overlay) {
+    // 뒤로 버튼
+    overlay.querySelector('#upg-back').addEventListener('click', () => {
+      this._removeOverlay();
       this.scene.start('LobbyScene');
     });
 
-    // ── 드래그 스크롤 ─────────────────────────────────────
-    // 화면 터치/드래그로 카메라 Y를 이동
-    this._scrollY = 0;
-    this._maxScrollY = Math.max(0, this._totalContentH - H + 80);
-    this._dragStartY = null;
-    this._dragStartCamY = 0;
-
-    this.input.on('pointerdown', (ptr) => {
-      this._dragStartY = ptr.y;
-      this._dragStartCamY = this._scrollY;
-    });
-
-    this.input.on('pointermove', (ptr) => {
-      if (this._dragStartY === null) return;
-      const dy = this._dragStartY - ptr.y;
-      this._scrollY = Phaser.Math.Clamp(
-        this._dragStartCamY + dy, 0, this._maxScrollY
-      );
-      this.cameras.main.setScrollY(this._scrollY);
-    });
-
-    this.input.on('pointerup', () => {
-      this._dragStartY = null;
+    // 구매 버튼 — 이벤트 위임
+    overlay.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      if (action === 'upgrade') this._doUpgrade(btn.dataset.key);
+      else if (action === 'unlock') this._doUnlock(btn.dataset.unit);
     });
   }
 
-  // 콘텐츠 높이 추정 (실제 렌더링 전 레이아웃 계산)
-  _estimateContentHeight(save) {
-    const rowH = 60;
-    const secH = 28;
-    let h = 76; // 헤더 아래 시작점
-
-    // 유닛 해금: 항상 3행
-    h += secH + 3 * rowH + 8;
-
-    // 유닛 업그레이드: 해금된 유닛 수 × 2
-    const upgUnits = ['warrior', 'archer', 'knight', 'mage'].filter(id =>
-      save.unlockedUnits.includes(id)
-    );
-    h += secH + upgUnits.length * 2 * rowH + 8;
-
-    // 성 화살: 2행
-    h += secH + 2 * rowH;
-
-    return h;
-  }
-
-  _buildContent(W, H, save) {
-    let curY = 76;
-    const rowGap = 60;
-
-    // ── 섹션 1: 유닛 해금 ──────────────────────────────
-    this._sectionTitle('유닛 해금', 10, curY);
-    curY += 28;
-
-    const lockableUnits = ['knight', 'mage', 'hero'];
-    for (const unitId of lockableUnits) {
-      window.UpgradeUI.makeUnlockRow(this, unitId, 10, curY, (id) => this._doUnlock(id));
-      curY += rowGap;
+  _removeOverlay() {
+    if (this._overlay) {
+      this._overlay.remove();
+      this._overlay = null;
     }
-
-    curY += 8;
-
-    // ── 섹션 2: 유닛 업그레이드 ────────────────────────
-    this._sectionTitle('유닛 강화', 10, curY);
-    curY += 28;
-
-    const upgKeys = ['warrior_hp', 'warrior_atk', 'archer_hp', 'archer_atk',
-                     'knight_hp', 'knight_atk', 'mage_hp', 'mage_atk'];
-
-    for (const key of upgKeys) {
-      const upg = window.UPGRADES[key];
-      // 해당 유닛이 해금된 경우만 표시
-      if (upg.requireUnit && !save.unlockedUnits.includes(upg.requireUnit)) continue;
-
-      window.UpgradeUI.makeUpgradeRow(this, key, 10, curY, (k) => this._doUpgrade(k));
-      curY += rowGap;
-    }
-
-    curY += 8;
-
-    // ── 섹션 3: 성 화살 ────────────────────────────────
-    this._sectionTitle('성 화살 강화', 10, curY);
-    curY += 28;
-
-    ['arrow_dmg', 'arrow_spd'].forEach(key => {
-      window.UpgradeUI.makeUpgradeRow(this, key, 10, curY, (k) => this._doUpgrade(k));
-      curY += rowGap;
-    });
   }
 
-  _sectionTitle(label, x, y) {
-    const W = window.GameConfig.GAME_WIDTH;
-    const line = this.add.graphics();
-    line.lineStyle(1, 0x334466);
-    line.lineBetween(x, y + 10, W - x, y + 10);
-
-    this.add.text(x + 4, y, label, {
-      fontSize: '13px', color: '#88aacc', fontStyle: 'bold'
-    });
+  // Phaser 씬이 종료/교체될 때 자동 정리
+  shutdown() {
+    this._removeOverlay();
   }
 
+  // ── 구매 로직 ───────────────────────────────────────────
   _doUnlock(unitId) {
     const cost = window.UNLOCK_COSTS[unitId];
     if (!window.CurrencySystem.spendGold(cost)) return;
 
     const save = window.SaveSystem.get();
-    if (!save.unlockedUnits.includes(unitId)) {
-      save.unlockedUnits.push(unitId);
-    }
+    if (!save.unlockedUnits.includes(unitId)) save.unlockedUnits.push(unitId);
     window.SaveSystem.persist();
 
-    // 씬 재시작으로 UI 갱신
-    this.scene.restart();
+    // 오버레이 갱신 (씬 재시작 없이)
+    this._removeOverlay();
+    this._buildOverlay();
   }
 
   _doUpgrade(key) {
     const save = window.SaveSystem.get();
-    const upg = window.UPGRADES[key];
+    const upg  = window.UPGRADES[key];
     const currentLevel = save.upgrades[key] || 0;
-
     if (currentLevel >= upg.maxLevel) return;
 
     const cost = window.calcUpgradeCost(key, currentLevel);
@@ -175,7 +234,8 @@ class UpgradeScene extends Phaser.Scene {
     save.upgrades[key] = currentLevel + 1;
     window.SaveSystem.persist();
 
-    this.scene.restart();
+    this._removeOverlay();
+    this._buildOverlay();
   }
 }
 

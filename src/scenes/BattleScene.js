@@ -194,9 +194,9 @@ class BattleScene extends Phaser.Scene {
     const r      = 16;
     const hudY   = cfg.GAME_HEIGHT - cfg.HUD_HEIGHT;
 
-    // 화면 가로 중앙 고정 — HUD 슬롯 개수 변경에 독립적
-    const fixedX = cfg.GAME_WIDTH / 2;
-    const fixedY = hudY - R - 10;
+    // 화면 오른쪽 고정 — HUD 슬롯 개수 변경에 독립적
+    const fixedX = cfg.GAME_WIDTH * 0.75;
+    const fixedY = hudY - 22;
 
     this._moveJoy = {
       radius: R,
@@ -207,12 +207,12 @@ class BattleScene extends Phaser.Scene {
       horizRatio: 0,
     };
 
-    // 베이스: 낮은 투명도로 항상 표시
+    // 베이스: 좌우 방향 바(캡슐) — 수평 전용
     this._moveBaseGfx = this.add.graphics().setScrollFactor(0).setDepth(30);
     this._moveBaseGfx.fillStyle(0x44aaff, 0.12);
-    this._moveBaseGfx.fillCircle(0, 0, R);
+    this._moveBaseGfx.fillRoundedRect(-R, -13, R * 2, 26, 13);
     this._moveBaseGfx.lineStyle(2, 0x44aaff, 0.50);
-    this._moveBaseGfx.strokeCircle(0, 0, R);
+    this._moveBaseGfx.strokeRoundedRect(-R, -13, R * 2, 26, 13);
     // 좌우 방향 힌트
     this._moveBaseGfx.fillStyle(0xffffff, 0.20);
     this._moveBaseGfx.fillTriangle(-R + 3, -5, -R + 3, 5, -R + 12, 0);
@@ -240,13 +240,12 @@ class BattleScene extends Phaser.Scene {
 
       const mx = this._moveJoy.baseX;
       const my = this._moveJoy.baseY;
-      const distToMove = Math.sqrt(
-        (pointer.x - mx) * (pointer.x - mx) +
-        (pointer.y - my) * (pointer.y - my)
-      );
+      const inMoveZone =
+        Math.abs(pointer.x - mx) <= this._moveJoy.radius * 1.4 &&
+        Math.abs(pointer.y - my) <= 30;
 
       // 이동 조이스틱 영역 터치
-      if (distToMove <= this._moveJoy.radius * 1.2 && !this._moveJoy.active) {
+      if (inMoveZone && !this._moveJoy.active) {
         this._moveJoy.active    = true;
         this._moveJoy.pointerId = pointer.id;
         this._moveBaseGfx.setAlpha(1.0);

@@ -36,6 +36,7 @@ class Paladin extends AllyUnit {
   _applyAura(allies) {
     const r = this.stats.auraRadius || 100;
     const MAX_STACKS = 3;
+    const spdBonus = this.stats.auraSpeedBonus || 0;
 
     for (const ally of allies) {
       if (!ally.alive || ally === this) continue;
@@ -47,6 +48,9 @@ class Paladin extends AllyUnit {
         // 팔라딘 중첩: BattleScene이 매 프레임 리셋 후 이 메서드로 재합산
         ally._paladinDmgReduction = Math.min(MAX_STACKS * 0.10, (ally._paladinDmgReduction || 0) + 0.10);
         ally._paladinAtkBonus    = Math.min(MAX_STACKS * 0.20, (ally._paladinAtkBonus    || 0) + 0.20);
+        if (spdBonus > 0) {
+          ally._paladinSpdBonus  = Math.min(MAX_STACKS * spdBonus, (ally._paladinSpdBonus || 0) + spdBonus);
+        }
       }
     }
   }

@@ -158,7 +158,7 @@ window.EVOLVED_UNITS = {
   },
   mage: {
     id: 'mage',
-    name: '대마법사',
+    name: '화염술사',
     hp: 110, atk: 90, spd: 45,
     cost: 15, range: 50, atkSpd: 1500, radius: 11,
     splashRadius: 130,
@@ -172,10 +172,34 @@ window.EVOLVED_UNITS = {
     cost: 100, range: 50, atkSpd: 800, radius: 18,
     isHero: true,
     killCostReward: 10,
-    auraRadius: 160,            // 기존 Hero 오라 반경보다 확대 — 향후 Hero._applyAura에서 처리
-    auraSpeedBonus: 0.20,       // 이동속도 +20% — 향후 Hero._applyAura에서 처리
-    auraDmgReduction: 0.30,     // 피해 감소 오라 강화 — 향후 Hero._applyAura에서 처리
-    auraAtkBonus: 0.60,         // 공격력 오라 강화 — 향후 Hero._applyAura에서 처리
+    auraRadius: 160,
+    auraSpeedBonus: 0.20,       // 이동속도 +20% — Hero._applyAura에서 처리
+    auraDmgReduction: 0.30,
+    auraAtkBonus: 0.60,
+  },
+  shielder: {
+    id: 'shielder',
+    name: '강철 방패병',
+    hp: 400, atk: 0, spd: 50,
+    cost: 10, range: 30, atkSpd: 9999, radius: 16,
+    isShielder: true, knockbackImmune: true, killCostReward: 5,
+    damageReduction: 0.35,      // 피해 35% 감소 — Unit.takeDamage에서 처리
+  },
+  paladin: {
+    id: 'paladin',
+    name: '빛의 성기사',
+    hp: 250, atk: 30, spd: 70,
+    cost: 30, range: 30, atkSpd: 1200, radius: 18,
+    isPaladin: true, auraRadius: 150, killCostReward: 5,
+    auraSpeedBonus: 0.15,       // 아군 이동속도 +15% — Paladin._applyAura에서 처리
+  },
+  serpent_mage: {
+    id: 'serpent_mage',
+    name: '코브라 술사',
+    hp: 120, atk: 120, spd: 50,
+    cost: 40, range: 180, atkSpd: 1500, radius: 15,
+    splashRadius: 140, killCostReward: 5,
+    // 특수: 독 누적 공격(미구현) — 향후 AllyUnit에서 처리
   },
 };
 

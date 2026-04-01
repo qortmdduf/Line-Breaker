@@ -492,6 +492,7 @@ class BattleScene extends Phaser.Scene {
     for (const u of this.allyUnits) {
       u._paladinDmgReduction = 0;
       u._paladinAtkBonus = 0;
+      u._paladinSpdBonus = 0;
     }
     // [PROTO END]
     for (const u of this.allyUnits)  u.update(delta, this.enemyUnits, this.enemyCastle, this.allyUnits);

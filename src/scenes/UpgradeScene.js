@@ -53,14 +53,13 @@ class UpgradeScene extends Phaser.Scene {
 
     // 섹션 1: 유닛 해금
     rows += this._sectionHTML('유닛 해금');
-    for (const unitId of ['knight', 'mage', 'hero']) {
+    for (const unitId of ['knight', 'mage', 'hero', 'shielder', 'paladin', 'serpent_mage']) {
       rows += this._unlockRowHTML(unitId, save, gold);
     }
 
-    // 섹션 2: 유닛 강화
+    // 섹션 2: 유닛 강화 (해금된 유닛만 표시)
     rows += this._sectionHTML('유닛 강화');
-    const upgKeys = ['warrior', 'archer', 'knight', 'mage', 'hero'];
-    // hero는 unlockedUnits에 'hero'가 있어야 표시
+    const upgKeys = ['warrior', 'archer', 'knight', 'mage', 'hero', 'shielder', 'paladin', 'serpent_mage'];
     for (const key of upgKeys) {
       const upg = window.UPGRADES[key];
       if (upg.requireUnit && !save.unlockedUnits.includes(upg.requireUnit)) continue;

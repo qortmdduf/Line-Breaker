@@ -27,6 +27,7 @@ class Unit extends Phaser.GameObjects.Container {
     // 팔라딘 버프: 매 프레임 BattleScene에서 리셋 후 Paladin._applyAura가 재설정
     this._paladinDmgReduction = 0;  // 피해 감소 비율 (0~0.3)
     this._paladinAtkBonus = 0;      // ATK 증가 비율 (0~0.6)
+    this._paladinSpdBonus = 0;      // 이동속도 증가 비율 (0~0.15)
 
     // 화상 DoT 상태
     this._burnDamage = 0;
@@ -137,8 +138,8 @@ class Unit extends Phaser.GameObjects.Container {
         this._doAttack(this.target);
       }
     } else {
-      // 사거리 밖: 적 성 방향으로 이동
-      const spd = this.stats.spd * (delta / 1000);
+      // 사거리 밖: 적 성 방향으로 이동 (팔라딘 이동속도 오라 반영)
+      const spd = this.stats.spd * (1 + this._paladinSpdBonus) * (delta / 1000);
 
       // 적 성에 닿으면 공격
       const distToCastle = Math.abs(this.x - enemyCastle.x);
@@ -179,8 +180,10 @@ class Unit extends Phaser.GameObjects.Container {
 
   takeDamage(amount) {
     if (!this.alive) return;
-    // 팔라딘 피해 감소 버프 반영
-    amount = Math.max(1, Math.floor(amount * (1 - this._paladinDmgReduction)));
+    // 유닛 고유 damageReduction(철갑 기사 등) + 팔라딘 버프 합산, 최대 75%
+    const reduction = Math.min(0.75,
+      (this.stats.damageReduction || 0) + this._paladinDmgReduction);
+    amount = Math.max(1, Math.floor(amount * (1 - reduction)));
     this.hp -= amount;
     this._updateHpBar();
     if (this.hp <= 0) {

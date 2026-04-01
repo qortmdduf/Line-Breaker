@@ -173,9 +173,26 @@ class Unit extends Phaser.GameObjects.Container {
 
   _doAttack(target) {
     this.attackCooldown = this.stats.atkSpd;
+    this._playAttackAnim(target.x); // 공격 애니메이션 훅
     // 팔라딘 ATK 버프 반영
     const effectiveAtk = Math.floor(this.stats.atk * (1 + this._paladinAtkBonus));
     target.takeDamage(effectiveAtk);
+  }
+
+  // ── 공격 애니메이션 훅 ────────────────────────────────────
+  // 서브클래스에서 오버라이드. 스프라이트 전환 시 this._sprite.play('attack')으로 교체.
+  _playAttackAnim(targetX) {}
+
+  // 피격 플래시 (흰색 — 모든 유닛 공통)
+  _flashHit() {
+    if (!this.alive || !this._body) return;
+    const origColor = this._getColor();
+    this._body.clear();
+    this._body.fillStyle(0xffffff, 0.85);
+    this._body.fillCircle(0, 0, this.stats.radius);
+    this.scene.time.delayedCall(80, () => {
+      if (this.alive && this._body) this._drawBody();
+    });
   }
 
   takeDamage(amount) {

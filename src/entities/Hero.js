@@ -33,11 +33,46 @@ class Hero extends AllyUnit {
     return hit;
   }
 
+  _playAttackAnim(targetX) {
+    const dir = targetX > this.x ? 1 : -1;
+    const origX = this.x;
+    // 황금 섬광 + 전진 타격
+    this._flashColor(0xffd700, 110);
+    this.scene.tweens.add({
+      targets: this,
+      x: this.x + dir * 16,
+      scaleX: 1.35,
+      scaleY: 0.85,
+      duration: 100,
+      ease: 'Power2',
+      yoyo: true,
+      onComplete: () => { if (this.alive) { this.x = origX; this.scaleX = 1; this.scaleY = 1; } },
+    });
+  }
+
   _showSkillEffect() {
+    // 스킬 폭발: 큰 황금 링 + 강한 섬광
+    this._flashColor(0xffffff, 150);
+    this.scene.tweens.add({
+      targets: this,
+      scaleX: 1.6, scaleY: 1.6,
+      duration: 80,
+      ease: 'Power3',
+      yoyo: true,
+    });
     const fx = this.scene.add.graphics();
-    fx.fillStyle(0xffd700, 0.4);
+    fx.fillStyle(0xffd700, 0.35);
     fx.fillCircle(this.x, this.y, this.SKILL_RANGE);
-    this.scene.time.delayedCall(300, () => { fx.destroy(); });
+    fx.lineStyle(3, 0xffffff, 0.8);
+    fx.strokeCircle(this.x, this.y, this.SKILL_RANGE);
+    this.scene.tweens.add({
+      targets: fx,
+      scaleX: 1.3, scaleY: 1.3,
+      alpha: 0,
+      duration: 350,
+      ease: 'Power2',
+      onComplete: () => fx.destroy(),
+    });
   }
 
   update(delta, enemies, enemyCastle) {

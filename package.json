@@ -1,0 +1,14 @@
+{
+  "name": "linebreaker-tools",
+  "version": "1.0.0",
+  "description": "LineBreaker 게임 에셋 생성 도구",
+  "type": "module",
+  "scripts": {
+    "generate": "node tools/generate-asset.js",
+    "generate-all": "node tools/generate-all.js"
+  },
+  "dependencies": {
+    "openai": "^4.0.0",
+    "dotenv": "^16.0.0"
+  }
+}

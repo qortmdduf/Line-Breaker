@@ -114,8 +114,10 @@ class UpgradeScene extends Phaser.Scene {
 
     let btnStyle, btnText, btnAttr;
     if (maxed) {
-      btnStyle = 'background:#664422;color:#ffcc44;font-weight:bold;';
-      btnText  = '진화!';
+      btnStyle = upg.evolutionName
+        ? 'background:#664422;color:#ffcc44;font-weight:bold;'
+        : 'background:#446644;color:#fff;';
+      btnText  = upg.evolutionName ? '진화!' : 'MAX';
       btnAttr  = 'disabled';
     } else {
       btnStyle = canBuy

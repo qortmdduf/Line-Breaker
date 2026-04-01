@@ -5,7 +5,7 @@ window.SaveSystem = (function() {
   const SAVE_KEY = 'defense_save';
 
   const DEFAULT_SAVE = {
-    gold: 0,
+    gold: 10000, // [TEST] 업그레이드 테스트용
     clearedStages: [],
     unlockedUnits: ['warrior', 'archer'],
     upgrades: {},

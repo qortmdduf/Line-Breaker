@@ -21,7 +21,7 @@ class UpgradeScene extends Phaser.Scene {
   }
 
   // ── HTML 오버레이 생성 ──────────────────────────────────
-  _buildOverlay() {
+  _buildOverlay(restoreScroll) {
     const save = window.SaveSystem.get();
     const gold = window.CurrencySystem.getGold();
 
@@ -46,23 +46,29 @@ class UpgradeScene extends Phaser.Scene {
 
     document.body.appendChild(overlay);
     this._overlay = overlay;
+
+    // 스크롤 위치 복원
+    if (restoreScroll) overlay.scrollTop = restoreScroll;
   }
 
   _buildHTML(save, gold) {
     let rows = '';
 
-    // 섹션 1: 유닛 해금
-    rows += this._sectionHTML('유닛 해금');
-    for (const unitId of ['knight', 'mage', 'hero', 'shielder', 'paladin', 'serpent_mage']) {
-      rows += this._unlockRowHTML(unitId, save, gold);
+    // 섹션 1: 유닛 해금 (해금 안 된 유닛만 표시)
+    const lockIds = ['knight', 'mage', 'hero', 'shielder', 'paladin', 'serpent_mage'];
+    const needsUnlock = lockIds.filter(id => !save.unlockedUnits.includes(id));
+    if (needsUnlock.length > 0) {
+      rows += this._sectionHTML('유닛 해금');
+      for (const unitId of needsUnlock) {
+        rows += this._unlockRowHTML(unitId, save, gold);
+      }
     }
 
-    // 섹션 2: 유닛 강화 (해금된 유닛만 표시)
+    // 섹션 2: 유닛 강화 — 코스트 오름차순
+    // warrior(5), archer(8), shielder(10), mage(15), knight(20), paladin(30), serpent_mage(40), hero(100)
     rows += this._sectionHTML('유닛 강화');
-    const upgKeys = ['warrior', 'archer', 'knight', 'mage', 'hero', 'shielder', 'paladin', 'serpent_mage'];
+    const upgKeys = ['warrior', 'archer', 'shielder', 'mage', 'knight', 'paladin', 'serpent_mage', 'hero'];
     for (const key of upgKeys) {
-      const upg = window.UPGRADES[key];
-      if (upg.requireUnit && !save.unlockedUnits.includes(upg.requireUnit)) continue;
       rows += this._upgradeRowHTML(key, save, gold);
     }
 
@@ -108,11 +114,16 @@ class UpgradeScene extends Phaser.Scene {
     const maxLevel     = upg.maxLevel;
     const cost         = window.calcUpgradeCost(key, currentLevel);
     const maxed        = currentLevel >= maxLevel;
-    const canBuy       = !maxed && gold >= cost;
-    const nearEvo      = !maxed && upg.evolutionName && (currentLevel === maxLevel - 1);
+    const unlocked     = !upg.requireUnit || save.unlockedUnits.includes(upg.requireUnit);
+    const canBuy       = unlocked && !maxed && gold >= cost;
+    const nearEvo      = unlocked && !maxed && upg.evolutionName && (currentLevel === maxLevel - 1);
 
     let btnStyle, btnText, btnAttr;
-    if (maxed) {
+    if (!unlocked) {
+      btnStyle = 'background:#2a2a2a;color:#555;';
+      btnText  = '해금 필요';
+      btnAttr  = 'disabled';
+    } else if (maxed) {
       btnStyle = upg.evolutionName
         ? 'background:#664422;color:#ffcc44;font-weight:bold;'
         : 'background:#446644;color:#fff;';
@@ -127,7 +138,9 @@ class UpgradeScene extends Phaser.Scene {
     }
 
     let subInfo = `<div style="font-size:12px;color:#aaa;">Lv ${currentLevel} / ${maxLevel}</div>`;
-    if (maxed && upg.evolutionName) {
+    if (!unlocked) {
+      subInfo = `<div style="font-size:12px;color:#555;">해금 후 강화 가능</div>`;
+    } else if (maxed && upg.evolutionName) {
       const abilities = (upg.evolutionAbilities || []).map(a =>
         `<li style="color:#ffcc44;font-size:10px;">${a}</li>`
       ).join('');
@@ -137,10 +150,11 @@ class UpgradeScene extends Phaser.Scene {
       subInfo += `<div style="font-size:10px;color:#aaffaa;">진화까지 1레벨! → ${upg.evolutionName}</div>`;
     }
 
+    const rowBg = unlocked ? '#223355' : '#151f2e';
     return `
-      <div style="background:#223355;border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:flex-start;">
+      <div style="background:${rowBg};border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:flex-start;">
         <div style="flex:1;margin-right:8px;">
-          <div style="font-size:14px;">${upg.label}</div>
+          <div style="font-size:14px;color:${unlocked ? '#fff' : '#555'};">${upg.label}</div>
           ${subInfo}
         </div>
         <button ${btnAttr} style="border:none;border-radius:6px;padding:8px 14px;font-size:13px;min-width:64px;flex-shrink:0;${btnStyle}">${btnText}</button>
@@ -190,13 +204,11 @@ class UpgradeScene extends Phaser.Scene {
 
   // ── 이벤트 연결 ────────────────────────────────────────
   _attachEvents(overlay) {
-    // 뒤로 버튼
     overlay.querySelector('#upg-back').addEventListener('click', () => {
       this._removeOverlay();
       this.scene.start('LobbyScene');
     });
 
-    // 구매 버튼 — 이벤트 위임
     overlay.addEventListener('click', (e) => {
       const btn = e.target.closest('button[data-action]');
       if (!btn) return;
@@ -213,7 +225,6 @@ class UpgradeScene extends Phaser.Scene {
     }
   }
 
-  // Phaser 씬이 종료/교체될 때 자동 정리
   shutdown() {
     this._removeOverlay();
   }
@@ -227,9 +238,9 @@ class UpgradeScene extends Phaser.Scene {
     if (!save.unlockedUnits.includes(unitId)) save.unlockedUnits.push(unitId);
     window.SaveSystem.persist();
 
-    // 오버레이 갱신 (씬 재시작 없이)
+    const scroll = this._overlay ? this._overlay.scrollTop : 0;
     this._removeOverlay();
-    this._buildOverlay();
+    this._buildOverlay(scroll);
   }
 
   _doUpgrade(key) {
@@ -244,8 +255,9 @@ class UpgradeScene extends Phaser.Scene {
     save.upgrades[key] = currentLevel + 1;
     window.SaveSystem.persist();
 
+    const scroll = this._overlay ? this._overlay.scrollTop : 0;
     this._removeOverlay();
-    this._buildOverlay();
+    this._buildOverlay(scroll);
   }
 }
 

@@ -37,7 +37,7 @@ window.UPGRADES = {
     evolutionAbilities: ['광역 공격 범위 대폭 확대', '화염 지속 피해 강화', '화염 폭발: 사망한 적에게 잔불 생성'],
   },
   hero: {
-    label: '성기사 (영웅)',
+    label: '성기사',
     base: 100,
     maxLevel: 10,
     requireUnit: 'hero',

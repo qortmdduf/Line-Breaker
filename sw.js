@@ -1,4 +1,4 @@
-const CACHE = 'linebreaker-v5';
+const CACHE = 'linebreaker-v6';
 
 const STATIC = [
   '/Line-Breaker/',

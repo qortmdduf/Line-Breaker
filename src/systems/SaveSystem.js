@@ -17,8 +17,9 @@ window.SaveSystem = (function() {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return Object.assign({}, DEFAULT_SAVE);
       const parsed = JSON.parse(raw);
-      // 누락된 키는 기본값으로 보완 (신규 필드 추가 대비)
-      return Object.assign({}, DEFAULT_SAVE, parsed);
+      const merged = Object.assign({}, DEFAULT_SAVE, parsed);
+      merged.gold = 10000; // [TEST] 강제 적용 — 기존 세이브 무관
+      return merged;
     } catch (e) {
       console.warn('[SaveSystem] 세이브 로드 실패, 기본값 사용:', e);
       return Object.assign({}, DEFAULT_SAVE);
